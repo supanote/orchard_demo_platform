@@ -5,7 +5,7 @@ import RootLayout from './layouts/RootLayout'
 import AboutPage from './pages/About'
 import HomePage from './pages/Home'
 import NotFoundPage from './pages/NotFound'
-import ClaimsModule from './demo-screen-claims'
+import ClaimsModule from './pages/demo-screen-claims'
 import IntakeModule from './intake'
 
 type PathRoute = { path: string; element: ReactElement }
