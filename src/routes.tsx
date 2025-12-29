@@ -1,4 +1,4 @@
-import { ReactElement } from 'react'
+import type { ReactElement } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import type { RouteObject } from 'react-router'
 import RootLayout from './layouts/RootLayout'
@@ -18,7 +18,7 @@ export const appRoutes: AppRoute[] = [
 
 const toRouteObjects = (defs: AppRoute[]): RouteObject[] =>
   defs.map((route) =>
-    route.index
+    'index' in route
       ? { index: true, element: route.element }
       : { path: route.path, element: route.element },
   )
