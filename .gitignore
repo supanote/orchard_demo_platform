@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Source intake module files
+intake-module-v10.jsx
+intake-module-v11.jsx
