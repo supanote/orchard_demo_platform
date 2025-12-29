@@ -6,6 +6,7 @@ import AboutPage from './pages/About'
 import HomePage from './pages/Home'
 import NotFoundPage from './pages/NotFound'
 import ClaimsModule from './demo-screen-claims'
+import IntakeModule from './intake'
 
 type PathRoute = { path: string; element: ReactElement }
 type IndexRoute = { index: true; element: ReactElement }
@@ -16,6 +17,7 @@ export const appRoutes: AppRoute[] = [
   { index: true, element: <HomePage /> },
   { path: 'about', element: <AboutPage /> },
   { path: 'charge-review', element: <ClaimsModule /> },
+  { path: 'intake', element: <IntakeModule /> },
 ]
 
 const toRouteObjects = (defs: AppRoute[]): RouteObject[] =>
