@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface Patient {
   id: number;
@@ -39,12 +39,153 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
   const [showTranscript, setShowTranscript] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(272); // 4:32 default
   const [reviewingField, setReviewingField] = useState<{ field: string; value: string; confidence: number } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [showAgentPanel, setShowAgentPanel] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState<number[]>([1, 4]);
   const [expandedFunnelStage, setExpandedFunnelStage] = useState<number | null>(null);
   const [bvSourceType, setBvSourceType] = useState('edi');
+  
+  // Media player refs and state
+  const intakeAudioRef = useRef<HTMLAudioElement>(null);
+  const bvVideoRef = useRef<HTMLVideoElement>(null);
+  const bvAudioRef = useRef<HTMLAudioElement>(null);
+  const [bvVideoPlaying, setBvVideoPlaying] = useState(false);
+  const [bvVideoTime, setBvVideoTime] = useState(0);
+  const [bvVideoDuration, setBvVideoDuration] = useState(45); // 45 sec default
+  const [bvAudioPlaying, setBvAudioPlaying] = useState(false);
+  const [bvAudioTime, setBvAudioTime] = useState(0);
+  const [bvAudioDuration, setBvAudioDuration] = useState(512); // 8:32 default
+
+  // Handle intake audio play/pause
+  const toggleIntakeAudio = () => {
+    if (intakeAudioRef.current) {
+      if (isPlaying) {
+        intakeAudioRef.current.pause();
+      } else {
+        intakeAudioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  // Handle BV video play/pause
+  const toggleBvVideo = () => {
+    if (bvVideoRef.current) {
+      if (bvVideoPlaying) {
+        bvVideoRef.current.pause();
+      } else {
+        bvVideoRef.current.play();
+      }
+      setBvVideoPlaying(!bvVideoPlaying);
+    }
+  };
+
+  // Handle BV audio play/pause
+  const toggleBvAudio = () => {
+    if (bvAudioRef.current) {
+      if (bvAudioPlaying) {
+        bvAudioRef.current.pause();
+      } else {
+        bvAudioRef.current.play();
+      }
+      setBvAudioPlaying(!bvAudioPlaying);
+    }
+  };
+
+  // Seek handler for intake audio
+  const handleIntakeSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = parseFloat(e.target.value);
+    setCurrentTime(newTime); // Update UI immediately for responsiveness
+    if (intakeAudioRef.current) {
+      intakeAudioRef.current.currentTime = newTime;
+    }
+  };
+
+  // Seek handler for BV audio
+  const handleBvAudioSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = parseFloat(e.target.value);
+    setBvAudioTime(newTime); // Update UI immediately for responsiveness
+    if (bvAudioRef.current) {
+      bvAudioRef.current.currentTime = newTime;
+    }
+  };
+
+  // Seek handler for BV video
+  const handleBvVideoSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = parseFloat(e.target.value);
+    setBvVideoTime(newTime); // Update UI immediately for responsiveness
+    if (bvVideoRef.current) {
+      bvVideoRef.current.currentTime = newTime;
+    }
+  };
+
+  // Update audio time for intake call
+  useEffect(() => {
+    const audio = intakeAudioRef.current;
+    if (!audio) return;
+    
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleLoadedMetadata = () => setAudioDuration(audio.duration || 272);
+    const handleEnded = () => setIsPlaying(false);
+    
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+    
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, []);
+
+  // Update audio time for BV call
+  // Re-run effect when bvSourceType changes (audio element only exists when call tab is active)
+  useEffect(() => {
+    if (bvSourceType !== 'call') return;
+    
+    const audio = bvAudioRef.current;
+    if (!audio) return;
+    
+    const handleTimeUpdate = () => setBvAudioTime(audio.currentTime);
+    const handleLoadedMetadata = () => setBvAudioDuration(audio.duration || 512);
+    const handleEnded = () => setBvAudioPlaying(false);
+    
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+    
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [bvSourceType]);
+
+  // Update video time for BV portal session
+  // Re-run effect when bvSourceType changes (video element only exists when portal tab is active)
+  useEffect(() => {
+    if (bvSourceType !== 'portal') return;
+    
+    const video = bvVideoRef.current;
+    if (!video) return;
+    
+    const handleTimeUpdate = () => setBvVideoTime(video.currentTime);
+    const handleLoadedMetadata = () => setBvVideoDuration(video.duration || 45);
+    const handleEnded = () => setBvVideoPlaying(false);
+    
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('ended', handleEnded);
+    
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('ended', handleEnded);
+    };
+  }, [bvSourceType]);
 
   const patientData = {
     name: patient?.name || 'Sarah Chen',
@@ -81,15 +222,34 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
   const outreachFields = [
     { field: 'DOB Verified', value: patientData.dob, source: '0:32', timestamp: 32, status: 'verified' },
     { field: 'Insurance Verified', value: patient?.insurance || 'Aetna', source: '0:42', timestamp: 42, status: 'verified' },
+    { field: 'Chief Complaint', value: patient?.reason || 'Anxiety, stress affecting sleep and work', source: '1:02', timestamp: 62, status: 'extracted' },
     { field: 'Availability', value: 'Afternoons, after 3pm', source: '1:38', timestamp: 98, status: 'extracted' },
+    { field: 'Modality', value: 'Open to telehealth or in-person', source: '1:52', timestamp: 112, status: 'extracted' },
   ];
 
   const transcriptLines = [
     { time: '0:00', timestamp: 0, speaker: 'AI', text: 'Hi, this is calling from Mindful Recovery Center. Am I speaking with ' + patientData.name + '?' },
     { time: '0:08', timestamp: 8, speaker: 'Patient', text: 'Yes, this is ' + (patientData.name?.split(' ')[0] || 'me') + '.' },
+    { time: '0:12', timestamp: 12, speaker: 'AI', text: 'Great! I\'m reaching out because we received a referral from your doctor. We\'d love to help get you scheduled for an initial consultation. Do you have a few minutes to go over some information?' },
+    { time: '0:24', timestamp: 24, speaker: 'Patient', text: 'Sure, that works for me.' },
+    { time: '0:27', timestamp: 27, speaker: 'AI', text: 'Perfect. For verification purposes, can you please confirm your date of birth?' },
     { time: '0:32', timestamp: 32, speaker: 'Patient', text: patientData.dob?.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$1/$2/$3') || '', highlight: 'DOB Verified', extracted: true },
+    { time: '0:35', timestamp: 35, speaker: 'AI', text: 'Thank you for confirming. And can you tell me what insurance you have?' },
     { time: '0:42', timestamp: 42, speaker: 'Patient', text: 'Yes, I have ' + (patient?.insurance || 'Aetna') + ' through my employer.', highlight: 'Insurance Verified', extracted: true },
+    { time: '0:48', timestamp: 48, speaker: 'AI', text: 'Great, we\'re in-network with ' + (patient?.insurance || 'Aetna') + '. I\'ll verify your specific benefits and coverage shortly. Now, I\'d like to understand what brings you in today. Can you tell me a little about what you\'re experiencing?' },
+    { time: '1:02', timestamp: 62, speaker: 'Patient', text: 'I\'ve been dealing with some ' + (patient?.reason || 'anxiety and stress') + ' lately. It\'s been affecting my sleep and work performance. My doctor thought it would be good to talk to someone.', highlight: 'Chief Complaint', extracted: true },
+    { time: '1:18', timestamp: 78, speaker: 'AI', text: 'I understand, and I\'m sorry to hear you\'ve been going through that. You\'ve taken an important step by reaching out. We have several experienced therapists who specialize in exactly these areas. What times generally work best for you for appointments?' },
     { time: '1:38', timestamp: 98, speaker: 'Patient', text: 'Afternoons work best for me. I usually finish work around 3pm.', highlight: 'Availability', extracted: true },
+    { time: '1:45', timestamp: 105, speaker: 'AI', text: 'Afternoons after 3pm, got it. Do you have a preference for in-person sessions or telehealth video visits?' },
+    { time: '1:52', timestamp: 112, speaker: 'Patient', text: 'I\'m open to either, honestly. Whatever is easier to get started.', highlight: 'Modality Preference', extracted: true },
+    { time: '1:58', timestamp: 118, speaker: 'AI', text: 'That flexibility helps! Let me check our availability. I have Dr. Emily Watson available this Tuesday at 3:30 PM for a telehealth session. She has great experience with anxiety and has wonderful patient reviews. Would that work for you?' },
+    { time: '2:15', timestamp: 135, speaker: 'Patient', text: 'Tuesday at 3:30 sounds perfect actually.' },
+    { time: '2:19', timestamp: 139, speaker: 'AI', text: 'Excellent! I\'ve got you booked with Dr. Watson for Tuesday, December 31st at 3:30 PM via telehealth. You\'ll receive a confirmation email shortly with the video link and some intake forms to complete before your appointment.' },
+    { time: '2:35', timestamp: 155, speaker: 'Patient', text: 'Great, thank you so much for helping me get this set up.' },
+    { time: '2:40', timestamp: 160, speaker: 'AI', text: 'You\'re very welcome! Is there anything else I can help you with today?' },
+    { time: '2:45', timestamp: 165, speaker: 'Patient', text: 'No, I think that covers everything.' },
+    { time: '2:48', timestamp: 168, speaker: 'AI', text: 'Perfect. We look forward to seeing you on Tuesday. Take care and have a great rest of your day!' },
+    { time: '2:53', timestamp: 173, speaker: 'Patient', text: 'Thanks, you too. Goodbye!' },
   ];
 
   const matchingFunnel = [
@@ -221,27 +381,103 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
         {/* PATIENT OUTREACH TAB */}
         {activeTab === 'outreach' && (
           <div className="flex w-full h-[calc(100vh-140px)]">
+            {/* Hidden audio element */}
+            <audio ref={intakeAudioRef} src="/intake_call.wav" preload="metadata" />
+            
             <div className="flex-[6] border-r border-gray-100 overflow-auto bg-gray-50 p-6 flex flex-col">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3"><SourceBadge type="call" /><span className="text-sm text-gray-500">Dec 26, 10:15 AM</span><span className="text-sm text-gray-400">• 4:32</span></div>
-                <span className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 bg-gray-900 rounded-full"></span>Connected</span>
+                <div className="flex items-center gap-3"><SourceBadge type="call" /><span className="text-sm text-gray-500">Dec 26, 10:15 AM</span><span className="text-sm text-gray-400">• {formatTime(audioDuration)}</span></div>
+                <span className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>Connected</span>
               </div>
-              <div className="mb-4 px-3 py-2 bg-gray-50 rounded-lg inline-flex items-center gap-2 text-sm text-gray-700 self-start"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Contacted within 33 min • SLA met</div>
+              <div className="mb-4 px-3 py-2 bg-emerald-50 rounded-lg inline-flex items-center gap-2 text-sm text-emerald-700 self-start"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Contacted within 33 min • SLA met</div>
               <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col">
                 {!showTranscript ? (
-                  <div className="flex-1 flex flex-col items-center justify-center"><button onClick={() => setIsPlaying(true)} className="w-20 h-20 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 mb-4"><svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></button><p className="text-sm text-gray-500">Click to play recording</p><p className="text-xs text-gray-400 mt-1">4 min 32 sec</p><button onClick={() => setShowTranscript(true)} className="mt-4 text-sm text-gray-600 hover:text-gray-700 font-medium">View Transcript</button></div>
+                  <div className="flex-1 flex flex-col items-center justify-center">
+                    <button onClick={toggleIntakeAudio} className="w-20 h-20 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 mb-4 transition-transform hover:scale-105">
+                      {isPlaying ? (
+                        <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+                      ) : (
+                        <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                      )}
+                    </button>
+                    <p className="text-sm text-gray-500">{isPlaying ? 'Playing...' : 'Click to play recording'}</p>
+                    <p className="text-xs text-gray-400 mt-1">{formatTime(currentTime)} / {formatTime(audioDuration)}</p>
+                    {/* Draggable Progress bar */}
+                    <div className="w-64 mt-4 relative">
+                      <input
+                        type="range"
+                        min="0"
+                        max={audioDuration || 272}
+                        step="0.5"
+                        value={currentTime}
+                        onInput={handleIntakeSeek}
+                        onChange={handleIntakeSeek}
+                        className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-gray-900 
+                          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 
+                          [&::-webkit-slider-thumb]:bg-gray-900 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-grab
+                          [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-webkit-slider-thumb]:shadow-md
+                          [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-gray-900 
+                          [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:border-0"
+                        style={{
+                          background: `linear-gradient(to right, #111827 0%, #111827 ${(currentTime / (audioDuration || 272)) * 100}%, #e5e7eb ${(currentTime / (audioDuration || 272)) * 100}%, #e5e7eb 100%)`
+                        }}
+                      />
+                    </div>
+                    <button onClick={() => setShowTranscript(true)} className="mt-6 text-sm text-gray-600 hover:text-gray-700 font-medium">View Transcript</button>
+                  </div>
                 ) : (
                   <div className="flex-1 flex flex-col">
                     <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-between">
-                      <div className="flex items-center gap-3"><button onClick={() => setIsPlaying(!isPlaying)} className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center"><svg className="w-3 h-3 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></button><span className="text-xs text-gray-500 font-mono">{formatTime(currentTime)} / 4:32</span></div>
+                      <div className="flex items-center gap-3">
+                        <button onClick={toggleIntakeAudio} className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800">
+                          {isPlaying ? (
+                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+                          ) : (
+                            <svg className="w-3 h-3 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                          )}
+                        </button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 font-mono">{formatTime(currentTime)} / {formatTime(audioDuration)}</span>
+                          {/* Mini draggable progress bar */}
+                          <input
+                            type="range"
+                            min="0"
+                            max={audioDuration || 272}
+                            step="0.5"
+                            value={currentTime}
+                            onInput={handleIntakeSeek}
+                            onChange={handleIntakeSeek}
+                            className="w-32 h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-gray-900
+                              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 
+                              [&::-webkit-slider-thumb]:bg-gray-900 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-grab
+                              [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:bg-gray-900 
+                              [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:border-0"
+                            style={{
+                              background: `linear-gradient(to right, #111827 0%, #111827 ${(currentTime / (audioDuration || 272)) * 100}%, #e5e7eb ${(currentTime / (audioDuration || 272)) * 100}%, #e5e7eb 100%)`
+                            }}
+                          />
+                        </div>
+                      </div>
                       <button onClick={() => setShowTranscript(false)} className="text-xs text-gray-500">Hide Transcript</button>
                     </div>
                     <div className="flex-1 overflow-auto p-6">
                       <div className="space-y-3">
                         {transcriptLines.map((line, index) => (
-                          <div key={index} className={`flex gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 ${currentTime >= line.timestamp && currentTime < (transcriptLines[index + 1]?.timestamp || 999) ? 'bg-gray-100' : ''}`} onClick={() => handleTimestampClick(line.timestamp)}>
+                          <div 
+                            key={index} 
+                            className={`flex gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${currentTime >= line.timestamp && currentTime < (transcriptLines[index + 1]?.timestamp || 999) ? 'bg-blue-50 border-l-2 border-blue-500' : ''}`} 
+                            onClick={() => {
+                              if (intakeAudioRef.current) {
+                                intakeAudioRef.current.currentTime = line.timestamp;
+                                if (!isPlaying) {
+                                  intakeAudioRef.current.play();
+                                  setIsPlaying(true);
+                                }
+                              }
+                            }}
+                          >
                             <button className="text-xs text-gray-600 font-mono w-10">{line.time}</button>
-                            <div className="flex-1"><span className={`text-xs font-medium ${line.speaker === 'Patient' ? 'text-gray-600' : 'text-gray-500'}`}>{line.speaker}</span><p className="text-sm text-gray-700 mt-0.5">{line.text}</p>{line.highlight && <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${line.extracted ? 'bg-gray-100 text-gray-700' : 'bg-gray-100 text-gray-600'}`}>{line.highlight}</span>}</div>
+                            <div className="flex-1"><span className={`text-xs font-medium ${line.speaker === 'Patient' ? 'text-blue-600' : 'text-gray-500'}`}>{line.speaker}</span><p className="text-sm text-gray-700 mt-0.5">{line.text}</p>{line.highlight && <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${line.extracted ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{line.highlight}</span>}</div>
                           </div>
                         ))}
                       </div>
@@ -362,19 +598,149 @@ IEA*1*000000001~`}</div>
                 )}
                 {bvSourceType === 'portal' && (
                   <div className="flex-1 flex flex-col">
-                    <div className="px-6 py-4 border-b border-gray-100 bg-white"><div className="flex items-center gap-3"><SourceBadge type="portal" /><div><p className="text-sm font-medium text-gray-900">Aetna Provider Portal</p><p className="text-xs text-gray-400">Dec 26, 10:19 AM • 45 sec</p></div></div></div>
-                    <div className="flex-1 bg-gray-900 flex items-center justify-center relative">
-                      <button className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20"><svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></button>
-                      <div className="absolute bottom-4 left-4 right-4"><div className="bg-black/60 rounded px-3 py-2 text-white text-xs">Navigating to member eligibility lookup...</div></div>
-                      <div className="absolute top-4 right-4 flex items-center gap-2"><span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></span><span className="text-white text-xs">REC 0:45</span></div>
+                    <div className="px-6 py-4 border-b border-gray-100 bg-white"><div className="flex items-center gap-3"><SourceBadge type="portal" /><div><p className="text-sm font-medium text-gray-900">Aetna Provider Portal</p><p className="text-xs text-gray-400">Dec 26, 10:19 AM • Screen Recording</p></div></div></div>
+                    <div className="flex-1 bg-gray-900 flex flex-col">
+                      {/* Video element */}
+                      <div className="flex-1 min-h-0 flex items-center justify-center relative">
+                        <video 
+                          ref={bvVideoRef}
+                          src="/BV_video.mp4"
+                          className="w-full h-full object-contain"
+                          onClick={toggleBvVideo}
+                          onPlay={() => setBvVideoPlaying(true)}
+                          onPause={() => setBvVideoPlaying(false)}
+                          onEnded={() => setBvVideoPlaying(false)}
+                        />
+                        {!bvVideoPlaying && (
+                          <button 
+                            onClick={toggleBvVideo}
+                            className="absolute w-16 h-16 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors backdrop-blur-sm"
+                          >
+                            <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                          </button>
+                        )}
+                        <div className="absolute top-4 right-4 flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${bvVideoPlaying ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></span>
+                          <span className="text-white text-xs">{bvVideoPlaying ? 'PLAYING' : 'PAUSED'}</span>
+                        </div>
+                      </div>
+                      {/* Video controls with draggable seek bar */}
+                      <div className="flex-shrink-0 bg-black/80 px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <button onClick={toggleBvVideo} className="p-1.5 hover:bg-white/10 rounded transition-colors">
+                            {bvVideoPlaying ? (
+                              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+                            ) : (
+                              <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                            )}
+                          </button>
+                          <span className="text-white text-xs font-mono w-20">{formatTime(Math.floor(bvVideoTime))} / {formatTime(Math.floor(bvVideoDuration))}</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max={bvVideoDuration || 45}
+                            step="0.1"
+                            value={bvVideoTime}
+                            onInput={handleBvVideoSeek}
+                            onChange={handleBvVideoSeek}
+                            className="flex-1 h-1.5 bg-white/30 rounded-full appearance-none cursor-pointer
+                              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 
+                              [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-grab
+                              [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-webkit-slider-thumb]:shadow-md
+                              [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:bg-white 
+                              [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:border-0"
+                            style={{
+                              background: `linear-gradient(to right, #fff 0%, #fff ${(bvVideoTime / (bvVideoDuration || 45)) * 100}%, rgba(255,255,255,0.3) ${(bvVideoTime / (bvVideoDuration || 45)) * 100}%, rgba(255,255,255,0.3) 100%)`
+                            }}
+                          />
+                        </div>
+                        <p className="text-white/60 text-xs mt-2">{bvVideoPlaying ? 'AI navigating portal to verify benefits...' : 'Click to play screen recording'}</p>
+                      </div>
                     </div>
                   </div>
                 )}
                 {bvSourceType === 'call' && (
-                  <div className="flex-1 flex flex-col items-center justify-center bg-gray-50">
-                    <button className="w-20 h-20 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 mb-4"><svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></button>
-                    <p className="text-sm text-gray-500">IVR navigation + agent verification</p>
-                    <p className="text-xs text-gray-400 mt-1">8 min 32 sec</p>
+                  <div className="flex-1 flex flex-col bg-gray-50">
+                    {/* Hidden audio element for BV call */}
+                    <audio ref={bvAudioRef} src="/BV_call.mp3" preload="auto" />
+                    
+                    <div className="px-6 py-4 border-b border-gray-100 bg-white">
+                      <div className="flex items-center gap-3">
+                        <SourceBadge type="call" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Payer Verification Call</p>
+                          <p className="text-xs text-gray-400">Aetna IVR + Agent • Dec 26, 10:19 AM</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col items-center justify-center p-8">
+                      {/* Waveform visualization */}
+                      <div className="w-full max-w-md mb-8">
+                        <div className="flex items-center justify-center gap-1 h-20">
+                          {Array.from({ length: 40 }).map((_, i) => (
+                            <div 
+                              key={i}
+                              className={`w-1 rounded-full transition-all duration-150 ${bvAudioPlaying ? 'bg-gray-900' : 'bg-gray-300'}`}
+                              style={{ 
+                                height: `${Math.sin(i * 0.5) * 30 + 40 + (bvAudioPlaying ? Math.random() * 20 : 0)}%`,
+                                opacity: bvAudioPlaying ? 0.8 + Math.random() * 0.2 : 0.5
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <button 
+                        onClick={toggleBvAudio}
+                        className="w-20 h-20 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 mb-4 transition-transform hover:scale-105"
+                      >
+                        {bvAudioPlaying ? (
+                          <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+                        ) : (
+                          <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                        )}
+                      </button>
+                      
+                      <p className="text-sm text-gray-500">{bvAudioPlaying ? 'Playing IVR + agent call...' : 'IVR navigation + agent verification'}</p>
+                      <p className="text-xs text-gray-400 mt-1">{formatTime(bvAudioTime)} / {formatTime(bvAudioDuration)}</p>
+                      
+                      {/* Draggable Progress bar */}
+                      <div className="w-64 mt-4 relative">
+                        <input
+                          type="range"
+                          min="0"
+                          max={bvAudioDuration || 512}
+                          step="0.5"
+                          value={bvAudioTime}
+                          onInput={handleBvAudioSeek}
+                          onChange={handleBvAudioSeek}
+                          className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-gray-900 
+                            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 
+                            [&::-webkit-slider-thumb]:bg-gray-900 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-grab
+                            [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-webkit-slider-thumb]:shadow-md
+                            [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-gray-900 
+                            [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:border-0"
+                          style={{
+                            background: `linear-gradient(to right, #111827 0%, #111827 ${(bvAudioTime / (bvAudioDuration || 512)) * 100}%, #e5e7eb ${(bvAudioTime / (bvAudioDuration || 512)) * 100}%, #e5e7eb 100%)`
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Call stages indicator */}
+                      <div className="mt-8 w-full max-w-sm">
+                        <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+                          <span>IVR Navigation</span>
+                          <span>Agent Verification</span>
+                        </div>
+                        <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-gray-400 to-gray-900 rounded-full transition-all"
+                            style={{ width: `${(bvAudioTime / bvAudioDuration) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {bvSourceType === 'manual' && (

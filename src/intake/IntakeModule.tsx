@@ -17,8 +17,8 @@ const JOHN_SMITH_PATIENT: Patient = {
   name: 'John Smith',
   dob: 'May 22, 1985',
   phone: '(410) 555-8923',
-  insurance: 'Cigna',
-  memberId: '25862',
+  insurance: 'Blue Cross Blue Shield',
+  memberId: '2452467',
   reason: 'Primary Care',
   source: 'form',
   stage: 'verification',
@@ -31,7 +31,7 @@ const JOHN_SMITH_PATIENT: Patient = {
   appointmentTime: '2:30 PM',
   provider: 'Dr. Amanda Puckett',
   benefitsVerified: true,
-  copay: '$25',
+  copay: '$30',
 };
 
 const IntakeModule: React.FC = () => {
