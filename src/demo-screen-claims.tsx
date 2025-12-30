@@ -1,21 +1,64 @@
 import React, { useState } from 'react';
 
+// Type definitions
+interface AiSuggestion {
+  type: string;
+  from?: string;
+  to?: string;
+  add?: string;
+  reason: string;
+  approved?: boolean;
+}
+
+interface Claim {
+  id: number;
+  patient: string;
+  dob: string;
+  serviceDate: string;
+  provider: string;
+  facility: string;
+  mode: string;
+  cpt: string[];
+  modifiers: string[];
+  icd10: string[];
+  amount: number;
+  payer: string;
+  stage: string;
+  status: string;
+  timeInStage: string;
+  isResubmission: boolean;
+  aiSuggestions?: AiSuggestion[];
+  approvedBy?: string;
+  approvedAt?: string;
+  submittedAt?: string;
+  acceptedAt?: string;
+  rejectedAt?: string;
+  clearinghouse?: string;
+  rejectionReason?: string;
+  rejectionCode?: string;
+  memberId?: string;
+  phone?: string;
+  needsApproval?: boolean;
+  resubmissionAttempt?: number;
+  previousRejection?: string;
+}
+
 const ClaimsModule = () => {
   const [activeTab, setActiveTab] = useState('workflow');
-  const [selectedClaim, setSelectedClaim] = useState(null);
+  const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [workflowView, setWorkflowView] = useState('kanban'); // 'kanban' or 'table'
-  const [expandedRows, setExpandedRows] = useState([]);
-  const [selectedClaims, setSelectedClaims] = useState([]);
+  const [expandedRows, setExpandedRows] = useState<number[]>([]);
+  const [selectedClaims, setSelectedClaims] = useState<number[]>([]);
   const [detailPanelExpanded, setDetailPanelExpanded] = useState(false);
   const [activeDetailTab, setActiveDetailTab] = useState('details');
   const [showFullCMS1500, setShowFullCMS1500] = useState(false);
-  const [selectedSuggestions, setSelectedSuggestions] = useState([]);
-  const [selectedTasks, setSelectedTasks] = useState([]);
-  const [assignDropdownOpen, setAssignDropdownOpen] = useState(null);
+  const [selectedSuggestions, setSelectedSuggestions] = useState<number[]>([]);
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  const [assignDropdownOpen, setAssignDropdownOpen] = useState<string | null>(null);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState('Last 7 days');
 
   // Sample claims data
-  const claims = [
+  const claims: Claim[] = [
     // New Charges
     { 
       id: 1, 
@@ -327,7 +370,7 @@ const ClaimsModule = () => {
     { id: 'submitted', name: 'Claim Submitted', color: '#10b981', bgColor: '#ecfdf5' }
   ];
 
-  const toggleRowExpansion = (claimId) => {
+  const toggleRowExpansion = (claimId: number) => {
     setExpandedRows(prev => 
       prev.includes(claimId) 
         ? prev.filter(id => id !== claimId)
@@ -335,7 +378,7 @@ const ClaimsModule = () => {
     );
   };
 
-  const toggleClaimSelection = (claimId) => {
+  const toggleClaimSelection = (claimId: number) => {
     setSelectedClaims(prev =>
       prev.includes(claimId)
         ? prev.filter(id => id !== claimId)
@@ -469,7 +512,7 @@ const ClaimsModule = () => {
 
   const teamMembers = ['Sarah M.', 'Mike R.', 'Jane D.', 'Tom S.'];
 
-  const toggleTaskSelection = (taskId) => {
+  const toggleTaskSelection = (taskId: string) => {
     setSelectedTasks(prev =>
       prev.includes(taskId)
         ? prev.filter(id => id !== taskId)
@@ -748,7 +791,7 @@ const ClaimsModule = () => {
                           key={task.id}
                           onClick={() => {
                             const claim = claims.find(c => c.id === task.claimId);
-                            setSelectedClaim(claim);
+                            if (claim) setSelectedClaim(claim);
                           }}
                           className="flex items-center justify-between py-3 px-3 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 cursor-pointer transition-colors"
                         >
@@ -1316,7 +1359,7 @@ const ClaimsModule = () => {
                         {/* Expanded Row Content */}
                         {expandedRows.includes(claim.id) && (
                           <tr className="bg-gray-50 border-b border-gray-100">
-                            <td colSpan="12" className="px-4 py-4">
+                            <td colSpan={12} className="px-4 py-4">
                               {claim.aiSuggestions && claim.stage === 'pending' && (
                                 <div className="ml-12 space-y-3">
                                   <p className="text-xs font-medium text-gray-500 uppercase mb-3">AI Suggestions</p>
@@ -1325,9 +1368,9 @@ const ClaimsModule = () => {
                                       <input type="checkbox" defaultChecked className="mt-0.5 rounded border-gray-300" />
                                       <div className="flex-1">
                                         <p className="text-sm text-gray-900">
-                                          {suggestion.type === 'cpt' && `Change CPT ${suggestion.from} → ${suggestion.to}`}
+                                          {suggestion.type === 'cpt' && suggestion.from && suggestion.to && `Change CPT ${suggestion.from} → ${suggestion.to}`}
                                           {suggestion.type === 'modifier' && `Add modifier ${suggestion.add}`}
-                                          {suggestion.type === 'icd10' && `Update ICD-10 ${suggestion.from} → ${suggestion.to}`}
+                                          {suggestion.type === 'icd10' && suggestion.from && suggestion.to && `Update ICD-10 ${suggestion.from} → ${suggestion.to}`}
                                         </p>
                                         <p className="text-xs text-gray-500 mt-1">{suggestion.reason}</p>
                                       </div>
@@ -1461,7 +1504,7 @@ const ClaimsModule = () => {
                       <tr 
                         key={task.id}
                         className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
-                        onClick={() => setSelectedClaim(claim)}
+                        onClick={() => claim && setSelectedClaim(claim)}
                       >
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <input
@@ -1904,10 +1947,12 @@ const ClaimsModule = () => {
                       </div>
                       <button 
                         onClick={() => {
-                          if (selectedSuggestions.length === selectedClaim.aiSuggestions.length) {
+                          const suggestions = selectedClaim.aiSuggestions;
+                          if (!suggestions) return;
+                          if (selectedSuggestions.length === suggestions.length) {
                             setSelectedSuggestions([]);
                           } else {
-                            setSelectedSuggestions(selectedClaim.aiSuggestions.map((_, i) => i));
+                            setSelectedSuggestions(suggestions.map((_, i) => i));
                           }
                         }}
                         className="text-xs text-blue-600 hover:text-blue-700 font-medium"
