@@ -1,11 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Patient } from './types';
-import { stages, patients, tasks, agents, activityFeed } from './data';
+import { stages, patients as staticPatients, tasks, agents, activityFeed } from './data';
 import SummaryTab from './components/SummaryTab';
 import WorkflowTab from './components/WorkflowTab';
 import TasksTab from './components/TasksTab';
 import SidePanel from './components/SidePanel';
 import PatientDetailV8 from './PatientDetailV8';
+import SettingsTab from './components/SettingsTab';
+
+// John Smith - The API-controlled patient
+const JOHN_SMITH_PATIENT: Patient = {
+  id: 9999,
+  name: 'John Smith',
+  dob: 'May 22, 1985',
+  phone: '(410) 555-8923',
+  insurance: 'Cigna',
+  memberId: '25862',
+  reason: 'Primary Care',
+  source: 'form',
+  stage: 'verification',
+  stageOrder: 4,
+  time: 'Just now',
+  status: 'Booked',
+  handledBy: 'AI',
+  escalated: false,
+  appointmentDate: 'Jan 15, 2025',
+  appointmentTime: '2:30 PM',
+  provider: 'Dr. Amanda Puckett',
+  benefitsVerified: true,
+  copay: '$25',
+};
 
 const IntakeModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState('summary');
@@ -19,11 +43,64 @@ const IntakeModule: React.FC = () => {
   const [assignedPatients, setAssignedPatients] = useState<Record<number, string | null>>({});
   const [animatedCounts, setAnimatedCounts] = useState({ total: 0, booked: 0, inProgress: 0, avgTime: 0, escalated: 0 });
   
+  // Settings panel state
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  
+  // API Patient state
+  const [apiPatient, setApiPatient] = useState<Patient | null>(null);
+  
+  // Combined patients: API patient (if exists) + static patients
+  const patients = apiPatient ? [apiPatient, ...staticPatients] : staticPatients;
+  
   // Summary Dashboard filters
   const [summaryTimePeriod, setSummaryTimePeriod] = useState('30d');
   const [summarySource, setSummarySource] = useState('all');
   const [summaryPayer, setSummaryPayer] = useState('all');
   const [compareToPreview, setCompareToPreview] = useState(false);
+
+  // Poll API for patient status
+  useEffect(() => {
+    const checkPatientStatus = async () => {
+      try {
+        const res = await fetch('/api/patient');
+        const data = await res.json();
+        
+        if (data.patientAdded && !apiPatient) {
+          setApiPatient({ ...JOHN_SMITH_PATIENT, time: 'Just now' });
+        } else if (!data.patientAdded && apiPatient) {
+          setApiPatient(null);
+          // Close panel if viewing the API patient
+          if (selectedPatient?.id === JOHN_SMITH_PATIENT.id) {
+            setSelectedPatient(null);
+            setDetailViewMode(null);
+          }
+        }
+      } catch {
+        // API not available, ignore
+      }
+    };
+    
+    // Check immediately on mount
+    checkPatientStatus();
+    
+    // Then poll every 2 seconds
+    const interval = setInterval(checkPatientStatus, 2000);
+    return () => clearInterval(interval);
+  }, [apiPatient, selectedPatient]);
+
+  // Delete API patient function (for Settings tab)
+  const deleteApiPatient = useCallback(async () => {
+    try {
+      await fetch('/api/patient', { method: 'DELETE' });
+      setApiPatient(null);
+      if (selectedPatient?.id === JOHN_SMITH_PATIENT.id) {
+        setSelectedPatient(null);
+        setDetailViewMode(null);
+      }
+    } catch (e) {
+      console.error('Failed to delete patient:', e);
+    }
+  }, [selectedPatient]);
 
   useEffect(() => {
     const targets = { total: 47, booked: 23, inProgress: 12, avgTime: 2.3, escalated: 3 };
@@ -99,16 +176,26 @@ const IntakeModule: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <aside className="w-16 bg-gray-900 flex flex-col items-center py-4">
-        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-900 font-bold text-lg mb-8">S</div>
-        <nav className="flex-1 space-y-2">
+      {/* Sidebar - Sticky with settings always visible at bottom */}
+      <aside className="w-16 bg-gray-900 flex flex-col items-center py-4 sticky top-0 h-screen">
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-900 font-bold text-lg mb-8 flex-shrink-0">S</div>
+        <nav className="flex-1 space-y-2 overflow-y-auto">
           <button className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/10 text-white">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
           </button>
         </nav>
+        {/* Settings button - always visible at bottom */}
+        <button 
+          onClick={() => setShowSettingsPanel(!showSettingsPanel)}
+          className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors flex-shrink-0 mt-2 ${showSettingsPanel ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
       </aside>
 
       <main className="flex-1 flex flex-col">
@@ -182,8 +269,32 @@ const IntakeModule: React.FC = () => {
               openPatientDetail={openPatientDetail}
             />
           )}
+
         </div>
       </main>
+
+      {/* Settings Side Panel */}
+      {showSettingsPanel && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/20" onClick={() => setShowSettingsPanel(false)}></div>
+          <aside className="relative w-full max-w-md bg-white shadow-xl flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Settings</h2>
+              <button onClick={() => setShowSettingsPanel(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <SettingsTab
+                apiPatient={apiPatient}
+                onDeletePatient={deleteApiPatient}
+              />
+            </div>
+          </aside>
+        </div>
+      )}
 
       {/* Side Panel */}
       {selectedPatient && detailViewMode === 'panel' && (

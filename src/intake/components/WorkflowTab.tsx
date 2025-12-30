@@ -38,7 +38,7 @@ const WorkflowTab: React.FC<WorkflowTabProps> = ({
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <button onClick={() => setSelectedStage(null)} className={`px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 ${!selectedStage ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>All <span className={`text-xs ${!selectedStage ? 'text-gray-300' : 'text-gray-400'}`}>{patients.filter(p => showDropped || p.stage !== 'dropped').length}</span></button>
-          {stages.filter(s => s.id !== 'dropped' && s.id !== 'completed').map(stage => {
+          {stages.filter(s => s.id !== 'dropped' && s.id !== 'completed' && s.id !== 'verification').map(stage => {
             const count = patients.filter(p => p.stage === stage.id).length;
             const stageColor = stage.id === 'extraction' ? 'bg-blue-500' : stage.id === 'outreach' ? 'bg-amber-500' : stage.id === 'intake' ? 'bg-blue-500' : 'bg-emerald-500';
             return (

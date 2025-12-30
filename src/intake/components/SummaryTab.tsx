@@ -1,5 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Patient, Task, Agent, ActivityItem } from '../types';
+
+// Pool of possible agent activities for dynamic updates
+const activityPool = [
+  { agent: 'Supa Intake', action: 'extracted patient info', patients: ['Fax #4821', 'Fax #4822', 'Fax #4823', 'Email #1892'] },
+  { agent: 'Supa Intake', action: 'initiated outbound call', patients: ['James Liu', 'Sarah Chen', 'Michael Park', 'Lisa Wong'] },
+  { agent: 'Supa Verify', action: 'verified benefits', patients: ['Thomas Anderson', 'Rachel Green', 'Kevin Wright', 'Maria Garcia'] },
+  { agent: 'Supa Intake', action: 'left voicemail', patients: ['Amanda Foster', 'Robert Kim', 'Jennifer Park', 'David Brown'] },
+  { agent: 'Supa Verify', action: 'confirmed coverage', patients: ['Sophie Turner', 'Chris Evans', 'Daniel Lee', 'Emily Watson'] },
+  { agent: 'Supa Intake', action: 'scheduled appointment', patients: ['Nancy Drew', 'Peter Parker', 'Mary Jane', 'Bruce Banner'] },
+  { agent: 'Supa Intake', action: 'sent intake forms', patients: ['Tony Stark', 'Steve Rogers', 'Natasha Romanoff', 'Clint Barton'] },
+  { agent: 'Supa Verify', action: 'checked eligibility', patients: ['Diana Prince', 'Clark Kent', 'Barry Allen', 'Arthur Curry'] },
+  { agent: 'Supa Intake', action: 'completed data extraction', patients: ['Referral #2891', 'Referral #2892', 'Form #1023', 'Form #1024'] },
+  { agent: 'Supa Verify', action: 'submitted prior auth', patients: ['John Doe', 'Jane Smith', 'Alex Johnson', 'Sam Wilson'] },
+];
 
 interface SummaryTabProps {
   summaryTimePeriod: string;
@@ -27,6 +41,43 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
   animatedCounts, tasks, agents, activityFeed, patients,
   setActiveTab, openPatientDetail
 }) => {
+  // Dynamic activity feed state
+  const [liveActivities, setLiveActivities] = useState<ActivityItem[]>(activityFeed);
+  const [nextId, setNextId] = useState(activityFeed.length + 1);
+
+  // Add new activities periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const randomActivity = activityPool[Math.floor(Math.random() * activityPool.length)];
+      const randomPatient = randomActivity.patients[Math.floor(Math.random() * randomActivity.patients.length)];
+      
+      const newActivity: ActivityItem = {
+        id: nextId,
+        agent: randomActivity.agent,
+        action: randomActivity.action,
+        patient: randomPatient,
+        time: 'Just now',
+      };
+
+      setLiveActivities(prev => {
+        // Update times for existing activities
+        const updated = prev.map((item, index) => ({
+          ...item,
+          time: index === 0 ? '5s ago' : 
+                index === 1 ? '15s ago' : 
+                index === 2 ? '30s ago' : 
+                index === 3 ? '1m ago' : 
+                `${index + 1}m ago`
+        }));
+        // Add new activity at the beginning, keep only last 6
+        return [newActivity, ...updated].slice(0, 6);
+      });
+      setNextId(prev => prev + 1);
+    }, 4000); // New activity every 4 seconds
+
+    return () => clearInterval(interval);
+  }, [nextId]);
+
   return (
     <div className="p-6">
       {/* Filters Bar */}
@@ -266,20 +317,76 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
           </div>
 
           {/* Live Activity */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 relative overflow-hidden">
+            {/* Animated background pulse for "live" effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-50/0 via-emerald-50/50 to-emerald-50/0 animate-shimmer"></div>
+            
+            <div className="relative flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-gray-900">Live Activity</h3>
-              <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>Live</span>
+              <span className="flex items-center gap-2 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                  <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                LIVE
+              </span>
             </div>
-            {activityFeed.map(a => (
-              <div key={a.id} className="flex items-start gap-3 mb-3">
-                <div className="w-1.5 h-1.5 bg-gray-300 rounded-full mt-2"></div>
-                <div>
-                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">{a.agent}</span> {a.action}</p>
-                  <p className="text-xs text-gray-500">{a.patient} - {a.time}</p>
+            <div className="relative space-y-2 overflow-hidden">
+              {liveActivities.map((a, index) => (
+                <div 
+                  key={a.id} 
+                  className={`flex items-start gap-3 p-2 rounded-lg transition-all duration-700 ${
+                    index === 0 
+                      ? 'bg-emerald-50 border border-emerald-200 animate-slideIn shadow-sm' 
+                      : 'hover:bg-gray-50'
+                  }`}
+                  style={{ 
+                    opacity: index === 0 ? 1 : 1 - (index * 0.15),
+                  }}
+                >
+                  <div className="relative mt-1 flex-shrink-0">
+                    {index === 0 ? (
+                      <>
+                        <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+                        <div className="absolute inset-0 w-3 h-3 bg-emerald-400 rounded-full animate-ping"></div>
+                        <div className="absolute -inset-1 w-5 h-5 bg-emerald-400 rounded-full animate-ping opacity-30"></div>
+                      </>
+                    ) : (
+                      <div className="w-2 h-2 rounded-full bg-gray-300 mt-0.5"></div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm ${index === 0 ? 'text-emerald-900' : 'text-gray-700'}`}>
+                      <span className={`font-bold ${index === 0 ? 'text-emerald-700' : 'text-gray-900'}`}>{a.agent}</span>{' '}
+                      {a.action}
+                    </p>
+                    <p className={`text-xs ${index === 0 ? 'text-emerald-600' : 'text-gray-500'}`}>{a.patient} · {a.time}</p>
+                  </div>
+                  {index === 0 && (
+                    <span className="flex-shrink-0 text-[10px] px-2 py-1 bg-emerald-500 text-white rounded-full font-bold animate-pulse shadow-lg shadow-emerald-500/30">
+                      ● NOW
+                    </span>
+                  )}
                 </div>
+              ))}
+            </div>
+            {/* Processing indicator - more prominent */}
+            <div className="relative mt-4 pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '0.6s' }}></span>
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '0.6s' }}></span>
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '0.6s' }}></span>
+                  </div>
+                  <span className="font-medium">Agents actively processing...</span>
+                </div>
+                <span className="text-[10px] text-emerald-600 font-semibold tabular-nums animate-pulse">
+                  {Math.floor(Math.random() * 3) + 2} in queue
+                </span>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </div>
