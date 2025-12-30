@@ -1,22 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Patient } from '../types';
 
 interface SettingsTabProps {
   apiPatient: Patient | null;
   onDeletePatient: () => Promise<void>;
+  apiUrl: string;
 }
 
-const SettingsTab: React.FC<SettingsTabProps> = ({ apiPatient, onDeletePatient }) => {
+const SettingsTab: React.FC<SettingsTabProps> = ({ apiPatient, onDeletePatient, apiUrl }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [baseUrl, setBaseUrl] = useState('<YOUR_SERVER_URL>');
-
-  // Get the actual origin on client side
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setBaseUrl(window.location.origin);
-    }
-  }, []);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -135,7 +128,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ apiPatient, onDeletePatient }
                 Use the API to add a patient:
               </p>
               <code className="mt-2 inline-block px-3 py-2 bg-gray-100 rounded-lg text-sm text-gray-700 font-mono break-all">
-                curl -X POST {baseUrl}/api/patient
+                curl -X POST {apiUrl}/api/patient
               </code>
             </div>
           )}
@@ -159,7 +152,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ apiPatient, onDeletePatient }
             <div className="px-4 py-3">
               <p className="text-sm text-gray-600 mb-2">Add John Smith to the intake workflow</p>
               <code className="block px-3 py-2 bg-gray-900 rounded text-sm text-emerald-400 font-mono break-all">
-                curl -X POST {baseUrl}/api/patient
+                curl -X POST {apiUrl}/api/patient
               </code>
             </div>
           </div>
@@ -173,7 +166,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ apiPatient, onDeletePatient }
             <div className="px-4 py-3">
               <p className="text-sm text-gray-600 mb-2">Remove John Smith from the intake workflow</p>
               <code className="block px-3 py-2 bg-gray-900 rounded text-sm text-red-400 font-mono break-all">
-                curl -X DELETE {baseUrl}/api/patient
+                curl -X DELETE {apiUrl}/api/patient
               </code>
             </div>
           </div>
@@ -187,7 +180,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ apiPatient, onDeletePatient }
             <div className="px-4 py-3">
               <p className="text-sm text-gray-600 mb-2">Check if the API patient is active</p>
               <code className="block px-3 py-2 bg-gray-900 rounded text-sm text-blue-400 font-mono break-all">
-                curl {baseUrl}/api/patient
+                curl {apiUrl}/api/patient
               </code>
             </div>
           </div>

@@ -8,6 +8,9 @@ import SidePanel from './components/SidePanel';
 import PatientDetailV8 from './PatientDetailV8';
 import SettingsTab from './components/SettingsTab';
 
+// API URL for patient management
+const API_URL = 'https://ai-staging.supa-health.ai';
+
 // John Smith - The API-controlled patient
 const JOHN_SMITH_PATIENT: Patient = {
   id: 9999,
@@ -62,7 +65,7 @@ const IntakeModule: React.FC = () => {
   useEffect(() => {
     const checkPatientStatus = async () => {
       try {
-        const res = await fetch('/api/patient');
+        const res = await fetch(`${API_URL}/api/patient`);
         const data = await res.json();
         
         if (data.patientAdded && !apiPatient) {
@@ -91,7 +94,7 @@ const IntakeModule: React.FC = () => {
   // Delete API patient function (for Settings tab)
   const deleteApiPatient = useCallback(async () => {
     try {
-      await fetch('/api/patient', { method: 'DELETE' });
+      await fetch(`${API_URL}/api/patient`, { method: 'DELETE' });
       setApiPatient(null);
       if (selectedPatient?.id === JOHN_SMITH_PATIENT.id) {
         setSelectedPatient(null);
@@ -290,6 +293,7 @@ const IntakeModule: React.FC = () => {
               <SettingsTab
                 apiPatient={apiPatient}
                 onDeletePatient={deleteApiPatient}
+                apiUrl={API_URL}
               />
             </div>
           </aside>
