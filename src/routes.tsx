@@ -3,10 +3,10 @@ import { createBrowserRouter } from 'react-router-dom'
 import type { RouteObject } from 'react-router'
 import RootLayout from './layouts/RootLayout'
 import AboutPage from './pages/About'
-import HomePage from './pages/Home'
 import NotFoundPage from './pages/NotFound'
 import ClaimsModule from './pages/demo-screen-claims'
 import IntakeModule from './intake'
+import ControlTowerDashboard from './control-tower'
 
 type PathRoute = { path: string; element: ReactElement }
 type IndexRoute = { index: true; element: ReactElement }
@@ -14,7 +14,8 @@ type IndexRoute = { index: true; element: ReactElement }
 export type AppRoute = PathRoute | IndexRoute
 
 export const appRoutes: AppRoute[] = [
-  { index: true, element: <HomePage /> },
+  { index: true, element: <ControlTowerDashboard /> },
+  { path: 'control-tower', element: <ControlTowerDashboard /> },
   { path: 'about', element: <AboutPage /> },
   { path: 'charge-review', element: <ClaimsModule /> },
   { path: 'intake', element: <IntakeModule /> },

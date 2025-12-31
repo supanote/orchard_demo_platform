@@ -178,103 +178,79 @@ const IntakeModule: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar - Sticky with settings always visible at bottom */}
-      <aside className="w-16 bg-gray-900 flex flex-col items-center py-4 sticky top-0 h-screen">
-        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-900 font-bold text-lg mb-8 flex-shrink-0">S</div>
-        <nav className="flex-1 space-y-2 overflow-y-auto">
-          <button className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/10 text-white">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-          </button>
-        </nav>
-        {/* Settings button - always visible at bottom */}
-        <button 
-          onClick={() => setShowSettingsPanel(!showSettingsPanel)}
-          className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors flex-shrink-0 mt-2 ${showSettingsPanel ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        </button>
-      </aside>
-
-      <main className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-gray-200">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-gray-900">Intake</h1>
-            <span className="text-sm text-gray-500">Orchard Mental Health</span>
-          </div>
-          <div className="px-6 flex gap-1">
-            {['summary', 'workflow', 'tasks'].map(tab => (
-              <button 
-                key={tab} 
-                onClick={() => setActiveTab(tab)} 
-                className={`px-4 py-2 text-sm font-medium border-b-2 capitalize flex items-center gap-2 ${activeTab === tab ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500'}`}
-              >
-                {tab}
-                {tab === 'tasks' && tasks.filter(t => !t.assignedTo).length > 0 && (
-                  <span className="bg-gray-200 text-gray-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">
-                    {tasks.filter(t => !t.assignedTo).length}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </header>
-
-        <div className="flex-1 overflow-auto">
-          {activeTab === 'summary' && (
-            <SummaryTab
-              summaryTimePeriod={summaryTimePeriod}
-              setSummaryTimePeriod={setSummaryTimePeriod}
-              summarySource={summarySource}
-              setSummarySource={setSummarySource}
-              summaryPayer={summaryPayer}
-              setSummaryPayer={setSummaryPayer}
-              compareToPreview={compareToPreview}
-              setCompareToPreview={setCompareToPreview}
-              animatedCounts={animatedCounts}
-              tasks={tasks}
-              agents={agents}
-              activityFeed={activityFeed}
-              patients={patients}
-              setActiveTab={setActiveTab}
-              openPatientDetail={openPatientDetail}
-            />
-          )}
-
-          {activeTab === 'workflow' && (
-            <WorkflowTab
-              stages={stages}
-              patients={patients}
-              selectedStage={selectedStage}
-              setSelectedStage={setSelectedStage}
-              showDropped={showDropped}
-              setShowDropped={setShowDropped}
-              dateFilter={dateFilter}
-              setDateFilter={setDateFilter}
-              view={view}
-              setView={setView}
-              openPatientDetail={openPatientDetail}
-              getPatientHandler={getPatientHandler}
-              getAssignedCTA={getAssignedCTA}
-              assignedPatients={assignedPatients}
-            />
-          )}
-
-          {activeTab === 'tasks' && (
-            <TasksTab
-              tasks={tasks}
-              patients={patients}
-              openPatientDetail={openPatientDetail}
-            />
-          )}
-
+    <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
+      <header className="bg-white border-b border-gray-200">
+        <div className="px-6 py-4 flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-gray-900">Intake</h1>
+          <span className="text-sm text-gray-500">Orchard Mental Health</span>
         </div>
-      </main>
+        <div className="px-6 flex gap-1">
+          {['summary', 'workflow', 'tasks'].map(tab => (
+            <button 
+              key={tab} 
+              onClick={() => setActiveTab(tab)} 
+              className={`px-4 py-2 text-sm font-medium border-b-2 capitalize flex items-center gap-2 ${activeTab === tab ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500'}`}
+            >
+              {tab}
+              {tab === 'tasks' && tasks.filter(t => !t.assignedTo).length > 0 && (
+                <span className="bg-gray-200 text-gray-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">
+                  {tasks.filter(t => !t.assignedTo).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-auto">
+        {activeTab === 'summary' && (
+          <SummaryTab
+            summaryTimePeriod={summaryTimePeriod}
+            setSummaryTimePeriod={setSummaryTimePeriod}
+            summarySource={summarySource}
+            setSummarySource={setSummarySource}
+            summaryPayer={summaryPayer}
+            setSummaryPayer={setSummaryPayer}
+            compareToPreview={compareToPreview}
+            setCompareToPreview={setCompareToPreview}
+            animatedCounts={animatedCounts}
+            tasks={tasks}
+            agents={agents}
+            activityFeed={activityFeed}
+            patients={patients}
+            setActiveTab={setActiveTab}
+            openPatientDetail={openPatientDetail}
+          />
+        )}
+
+        {activeTab === 'workflow' && (
+          <WorkflowTab
+            stages={stages}
+            patients={patients}
+            selectedStage={selectedStage}
+            setSelectedStage={setSelectedStage}
+            showDropped={showDropped}
+            setShowDropped={setShowDropped}
+            dateFilter={dateFilter}
+            setDateFilter={setDateFilter}
+            view={view}
+            setView={setView}
+            openPatientDetail={openPatientDetail}
+            getPatientHandler={getPatientHandler}
+            getAssignedCTA={getAssignedCTA}
+            assignedPatients={assignedPatients}
+          />
+        )}
+
+        {activeTab === 'tasks' && (
+          <TasksTab
+            tasks={tasks}
+            patients={patients}
+            openPatientDetail={openPatientDetail}
+          />
+        )}
+
+      </div>
 
       {/* Settings Side Panel */}
       {showSettingsPanel && (
