@@ -1,4 +1,4 @@
-import type { Claim, Stage, Task } from './types';
+import type { Claim, Rule, Stage, Task } from './types';
 
 export const stages: Stage[] = [
   { id: 'new', name: 'New Charges', color: '#6b7280', bgColor: '#f9fafb' },
@@ -329,115 +329,165 @@ export const claims: Claim[] = [
   },
 ];
 
-export const ehrSyncClaims: Claim[] = [
+export const rules: Rule[] = [
   {
-    id: 15,
-    patient: 'Olivia Benson',
-    dob: '02/14/1987',
-    serviceDate: '01/02/2025',
-    provider: 'Dr. Lee',
-    facility: 'Telehealth Clinic',
-    mode: 'Telehealth',
-    cpt: ['90837'],
-    modifiers: [],
-    icd10: ['F41.1'],
-    amount: 200,
-    payer: 'Aetna',
-    stage: 'ai-review',
-    status: 'Issues detected: missing telehealth modifier',
-    timeInStage: '2m',
-    isResubmission: false,
-    memberId: 'MEM-015',
-    phone: '(555) 666-7777',
-    placeOfServiceCode: '02',
-    placeOfServiceDescription: 'Telehealth Provided Other than in Patient’s Home',
-    serviceType: 'Individual Therapy - Telehealth',
-    location: 'Patient at home (telehealth)',
-    telehealthPlatform: 'Zoom for Healthcare',
-    aiSuggestions: [
-      {
-        type: 'modifier',
-        add: '-95',
-        reason: 'Telehealth visit billed without required 95 modifier; payer requires POS 02 + modifier 95 for reimbursement.',
-      },
-    ],
-    clinicalQuickFacts: [
-      { title: 'Session Setting', value: 'Telehealth video visit' },
-      { title: 'Expected POS', value: '02 - Telehealth', prominent: true },
-      { title: 'Modifier', value: 'Missing 95 modifier' },
-      { title: 'Platform', value: 'Zoom for Healthcare' },
-    ],
-    clinicalNoteSections: [
-      {
-        label: 'OBJECTIVE',
-        text:
-          'Session conducted via secure video; patient in home environment. No technical issues noted. Provider confirmed patient location and consent for telehealth.',
-      },
-      {
-        label: 'ASSESSMENT',
-        text:
-          'Generalized Anxiety Disorder (F41.1). Telehealth appropriate; no safety concerns reported. Continues CBT-focused plan.',
-      },
-    ],
+    id: 'r1',
+    name: 'Telehealth Modifier Requirement',
+    description: 'Require -95 or -GT on all telehealth visits before submission.',
   },
   {
-    id: 16,
-    patient: 'Noah Price',
-    dob: '06/11/1985',
-    serviceDate: '01/03/2025',
-    provider: 'Dr. Smith',
-    facility: 'Frederick Clinic',
-    mode: 'Telehealth',
-    cpt: ['90791'],
-    modifiers: ['-GT'],
-    icd10: ['F32.1'],
-    amount: 250,
-    payer: 'United',
-    stage: 'ai-review',
-    status: 'Issue detected: place of service mismatch',
-    timeInStage: '1m',
-    isResubmission: false,
-    memberId: 'MEM-016',
-    phone: '(555) 777-8888',
-    placeOfServiceCode: '11',
-    placeOfServiceDescription: 'Office',
-    expectedPlaceOfServiceCode: '02',
-    expectedPlaceOfServiceDescription: 'Telehealth Provided Other than in Patient’s Home',
-    serviceType: 'Telehealth intake (scheduled virtual)',
-    location: 'Frederick Clinic - Room 3B (documented physical location)',
-    telehealthPlatform: 'Doxy.me',
-    aiSuggestions: [
-      {
-        type: 'pos',
-        from: '11 - Office',
-        to: '02 - Telehealth',
-        reason:
-          'Progress note documents a virtual session; place of service should be 02 for telehealth instead of 11 (office).',
-      },
-    ],
-    clinicalQuickFacts: [
-      { title: 'Session Type', value: 'Telehealth (scheduled virtual)' },
-      { title: 'Documented POS', value: '11 - Office' },
-      { title: 'Expected POS', value: '02 - Telehealth', prominent: true },
-      { title: 'Location in Note', value: 'Frederick Clinic - Room 3B' },
-    ],
-    clinicalNoteSections: [
-      {
-        label: 'OBJECTIVE',
-        text:
-          'Provider documented patient “connected via video from Frederick Clinic room 3B” even though visit was billed as telehealth.',
-      },
-      {
-        label: 'ASSESSMENT',
-        text:
-          'Depressive episode (F32.1). Telehealth encounter; POS should reflect telehealth. Location field suggests in-office coding.',
-      },
-    ],
-    relatedDocuments: [
-      { title: 'Progress Note - Jan 3', date: 'Jan 3, 2025', cta: 'View' },
-      { title: 'Telehealth Consent', date: 'On file', cta: 'View' },
-    ],
+    id: 'r2',
+    name: 'Timely Filing Check',
+    description: 'Block submission if DOS is more than 60 days without authorization.',
   },
+  {
+    id: 'r3',
+    name: 'POS Validation',
+    description: 'Ensure POS 02 when visit mode is telehealth to avoid payer rejections.',
+  },
+];
+
+export const ehrSyncBatches: Claim[][] = [
+  [
+    {
+      id: 15,
+      patient: 'Olivia Benson',
+      dob: '02/14/1987',
+      serviceDate: '01/02/2025',
+      provider: 'Dr. Lee',
+      facility: 'Telehealth Clinic',
+      mode: 'Telehealth',
+      providerState: 'CA',
+      patientState: 'CA',
+      cpt: ['90837'],
+      modifiers: [],
+      icd10: ['F41.1'],
+      amount: 200,
+      payer: 'Aetna',
+      stage: 'ai-review',
+      status: 'Issues detected: missing telehealth modifier',
+      timeInStage: '2m',
+      isResubmission: false,
+      memberId: 'MEM-015',
+      phone: '(555) 666-7777',
+      placeOfServiceCode: '02',
+      placeOfServiceDescription: 'Telehealth Provided Other than in Patient’s Home',
+      serviceType: 'Individual Therapy - Telehealth',
+      location: 'Patient at home (telehealth)',
+      telehealthPlatform: 'Zoom for Healthcare',
+      aiSuggestions: [
+        {
+          type: 'modifier',
+          add: '-95',
+          reason: 'Telehealth visit billed without required 95 modifier; payer requires POS 02 + modifier 95 for reimbursement.',
+        },
+      ],
+      clinicalQuickFacts: [
+        { title: 'Session Setting', value: 'Telehealth video visit' },
+        { title: 'Expected POS', value: '02 - Telehealth', prominent: true },
+        { title: 'Modifier', value: 'Missing 95 modifier' },
+        { title: 'Platform', value: 'Zoom for Healthcare' },
+      ],
+      clinicalNoteSections: [
+        {
+          label: 'OBJECTIVE',
+          text:
+            'Session conducted via secure video; patient in home environment. No technical issues noted. Provider confirmed patient location and consent for telehealth.',
+        },
+        {
+          label: 'ASSESSMENT',
+          text:
+            'Generalized Anxiety Disorder (F41.1). Telehealth appropriate; no safety concerns reported. Continues CBT-focused plan.',
+        },
+      ],
+    },
+    {
+      id: 16,
+      patient: 'Noah Price',
+      dob: '06/11/1985',
+      serviceDate: '01/03/2025',
+      provider: 'Dr. Smith',
+      facility: 'Frederick Clinic',
+      mode: 'Telehealth',
+      providerState: 'MD',
+      patientState: 'MD',
+      cpt: ['90791'],
+      modifiers: ['-GT'],
+      icd10: ['F32.1'],
+      amount: 250,
+      payer: 'United',
+      stage: 'ai-review',
+      status: 'Issue detected: place of service mismatch',
+      timeInStage: '1m',
+      isResubmission: false,
+      memberId: 'MEM-016',
+      phone: '(555) 777-8888',
+      placeOfServiceCode: '11',
+      placeOfServiceDescription: 'Office',
+      expectedPlaceOfServiceCode: '02',
+      expectedPlaceOfServiceDescription: 'Telehealth Provided Other than in Patient’s Home',
+      serviceType: 'Telehealth intake (scheduled virtual)',
+      location: 'Frederick Clinic - Room 3B (documented physical location)',
+      telehealthPlatform: 'Doxy.me',
+      aiSuggestions: [
+        {
+          type: 'pos',
+          from: '11 - Office',
+          to: '02 - Telehealth',
+          reason:
+            'Progress note documents a virtual session; place of service should be 02 for telehealth instead of 11 (office).',
+        },
+      ],
+      clinicalQuickFacts: [
+        { title: 'Session Type', value: 'Telehealth (scheduled virtual)' },
+        { title: 'Documented POS', value: '11 - Office' },
+        { title: 'Expected POS', value: '02 - Telehealth', prominent: true },
+        { title: 'Location in Note', value: 'Frederick Clinic - Room 3B' },
+      ],
+      clinicalNoteSections: [
+        {
+          label: 'OBJECTIVE',
+          text:
+            'Provider documented patient “connected via video from Frederick Clinic room 3B” even though visit was billed as telehealth.',
+        },
+        {
+          label: 'ASSESSMENT',
+          text:
+            'Depressive episode (F32.1). Telehealth encounter; POS should reflect telehealth. Location field suggests in-office coding.',
+        },
+      ],
+      relatedDocuments: [
+        { title: 'Progress Note - Jan 3', date: 'Jan 3, 2025', cta: 'View' },
+        { title: 'Telehealth Consent', date: 'On file', cta: 'View' },
+      ],
+    },
+  ],
+  [
+    {
+      id: 17,
+      patient: 'Ava Collins',
+      dob: '05/19/1989',
+      serviceDate: '01/04/2025',
+      provider: 'Dr. Patel',
+      facility: 'Telehealth Clinic',
+      mode: 'Telehealth',
+      providerState: 'CA',
+      patientState: 'TX',
+      cpt: ['90837'],
+      modifiers: ['-95'],
+      icd10: ['F41.1'],
+      amount: 200,
+      payer: 'Blue Cross',
+      stage: 'ai-review',
+      status: 'Reviewing telehealth compliance',
+      timeInStage: 'Just now',
+      isResubmission: false,
+      memberId: 'MEM-017',
+      phone: '(555) 888-9999',
+      telehealthPlatform: 'Zoom for Healthcare',
+      aiSuggestions: [],
+    },
+  ],
 ];
 
 export const tasks: Task[] = [

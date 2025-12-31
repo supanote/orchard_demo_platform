@@ -4,6 +4,7 @@ import { TabNavigation } from './TabNavigation';
 import { SummaryTab } from './SummaryTab';
 import { WorkflowTab } from './WorkflowTab';
 import { TasksTab } from './TasksTab';
+import { RulesTab } from './RulesTab';
 import { ClaimDetailPanel } from './ClaimDetailPanel';
 
 export const ClaimsPage: React.FC = () => {
@@ -28,6 +29,7 @@ export const ClaimsPage: React.FC = () => {
         {activeTab === 'summary' && <SummaryTab />}
         {activeTab === 'workflow' && <WorkflowTab />}
         {activeTab === 'tasks' && <TasksTab />}
+        {activeTab === 'rules' && <RulesTab />}
         <ClaimDetailPanel />
       </main>
     </div>

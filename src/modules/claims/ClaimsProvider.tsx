@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useReducer, useState } from 'react';
-import { claims as seedClaims, ehrSyncClaims, stages as seedStages, tasks as seedTasks, teamMembers } from './data';
-import type { ActiveTab, ClaimsUIState, Claim, DetailTab, WorkflowView } from './types';
+import { claims as seedClaims, ehrSyncBatches, rules as seedRules, stages as seedStages, tasks as seedTasks, teamMembers } from './data';
+import type { ActiveTab, ClaimsUIState, Claim, DetailTab, Rule, WorkflowView } from './types';
 import { toggleItem } from './utils';
 
 type ClaimsAction =
@@ -106,6 +106,7 @@ interface ClaimsContextValue {
     tasks: typeof seedTasks;
     stages: typeof seedStages;
     teamMembers: typeof teamMembers;
+    rules: Rule[];
   };
   state: ClaimsUIState;
   actions: {
@@ -125,6 +126,8 @@ interface ClaimsContextValue {
     clearSelectedTasks: () => void;
     setAssignDropdownOpen: (value: string | null) => void;
     setSelectedTimePeriod: (value: string) => void;
+    addRule: (name: string, description: string) => void;
+    removeRule: (id: string) => void;
     syncFromEhr: () => void;
     approveSuggestions: (claimId: number, suggestionIndices: number[] | null, approvedBy?: string) => void;
   };
@@ -134,7 +137,39 @@ const ClaimsContext = createContext<ClaimsContextValue | undefined>(undefined);
 
 export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [claims, setClaims] = useState<Claim[]>(seedClaims);
+  const [rules, setRules] = useState<Rule[]>(seedRules);
+  const [ehrBatchIndex, setEhrBatchIndex] = useState(0);
   const [state, dispatch] = useReducer(claimsReducer, initialState);
+
+  const hasLicensingRule = useMemo(
+    () =>
+      rules.some(
+        (rule) =>
+          rule.name.toLowerCase().includes('licensed') || rule.description.toLowerCase().includes('licensed in patient'),
+      ),
+    [rules],
+  );
+
+  const attachRuleSuggestions = (claim: Claim): Claim => {
+    const suggestions = [...(claim.aiSuggestions ?? [])];
+
+    if (
+      hasLicensingRule &&
+      claim.mode === 'Telehealth' &&
+      claim.providerState &&
+      claim.patientState &&
+      claim.providerState !== claim.patientState
+    ) {
+      suggestions.push({
+        type: 'pos',
+        from: `${claim.providerState} provider license`,
+        to: `${claim.patientState} patient location`,
+        reason: 'Provider must be licensed in the patient’s location for telehealth sessions.',
+      });
+    }
+
+    return { ...claim, aiSuggestions: suggestions };
+  };
 
   const actions = useMemo(
     () => ({
@@ -154,12 +189,24 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       clearSelectedTasks: () => dispatch({ type: 'clearSelectedTasks' }),
       setAssignDropdownOpen: (value: string | null) => dispatch({ type: 'setAssignDropdownOpen', value }),
       setSelectedTimePeriod: (value: string) => dispatch({ type: 'setSelectedTimePeriod', value }),
+      addRule: (name: string, description: string) => {
+        const trimmedName = name.trim();
+        const trimmedDescription = description.trim();
+        if (!trimmedName || !trimmedDescription) return;
+
+        setRules((prev) => [...prev, { id: crypto.randomUUID(), name: trimmedName, description: trimmedDescription }]);
+      },
+      removeRule: (id: string) => setRules((prev) => prev.filter((rule) => rule.id !== id)),
       syncFromEhr: () => {
         if (state.isSyncingFromEhr) return;
         dispatch({ type: 'startEhrSync' });
 
         setTimeout(() => {
-          const incoming = ehrSyncClaims.filter((claim) => !claims.some((c) => c.id === claim.id));
+          const batch = ehrSyncBatches[Math.min(ehrBatchIndex, ehrSyncBatches.length - 1)] ?? [];
+          const incoming = batch
+            .filter((claim) => !claims.some((c) => c.id === claim.id))
+            .map((claim) => attachRuleSuggestions(claim));
+
           if (incoming.length === 0) {
             dispatch({ type: 'finishEhrSync' });
             return;
@@ -204,6 +251,8 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               );
             }, 14000);
           });
+
+          setEhrBatchIndex((prev) => Math.min(prev + 1, ehrSyncBatches.length - 1));
 
           dispatch({ type: 'finishEhrSync' });
         }, 7000);
@@ -253,16 +302,16 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
       },
     }),
-    [claims, state.isSyncingFromEhr, state.selectedClaim],
+    [attachRuleSuggestions, claims, ehrBatchIndex, rules, state.isSyncingFromEhr, state.selectedClaim],
   );
 
   const value = useMemo<ClaimsContextValue>(
     () => ({
-      data: { claims, tasks: seedTasks, stages: seedStages, teamMembers },
+      data: { claims, tasks: seedTasks, stages: seedStages, teamMembers, rules },
       state,
       actions,
     }),
-    [claims, state, actions],
+    [claims, rules, state, actions],
   );
 
   return <ClaimsContext.Provider value={value}>{children}</ClaimsContext.Provider>;

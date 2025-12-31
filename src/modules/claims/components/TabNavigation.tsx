@@ -1,5 +1,6 @@
 import React from 'react';
 import { useClaims } from '../ClaimsProvider';
+import type { ActiveTab } from '../types';
 
 export const TabNavigation: React.FC = () => {
   const {
@@ -8,10 +9,11 @@ export const TabNavigation: React.FC = () => {
     data: { tasks },
   } = useClaims();
 
-  const tabs: { id: 'summary' | 'workflow' | 'tasks'; label: string; badge?: string }[] = [
+  const tabs: { id: ActiveTab; label: string; badge?: string }[] = [
     { id: 'summary', label: 'Summary' },
     { id: 'workflow', label: 'Workflow' },
     { id: 'tasks', label: 'Tasks', badge: String(tasks.length) },
+    { id: 'rules', label: 'Rules' },
   ];
 
   return (

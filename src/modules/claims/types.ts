@@ -2,7 +2,7 @@ export type ClaimStage = 'new' | 'ai-review' | 'pending' | 'submitted';
 
 export type WorkflowView = 'kanban' | 'table';
 
-export type ActiveTab = 'summary' | 'workflow' | 'tasks';
+export type ActiveTab = 'summary' | 'workflow' | 'tasks' | 'rules';
 
 export type DetailTab = 'details' | 'ai-review' | 'clinical' | 'submission' | 'activity';
 
@@ -13,6 +13,12 @@ export interface Stage {
   name: string;
   color: string;
   bgColor: string;
+}
+
+export interface Rule {
+  id: string;
+  name: string;
+  description: string;
 }
 
 export interface AISuggestion {
@@ -29,6 +35,7 @@ export interface ClinicalQuickFact {
   value: string;
   prominent?: boolean;
   showAction?: boolean;
+  details?: string;
 }
 
 export interface ClinicalNoteSection {
@@ -50,6 +57,8 @@ export interface Claim {
   provider: string;
   facility: string;
   mode: 'Telehealth' | 'In-Person';
+  providerState?: string;
+  patientState?: string;
   cpt: string[];
   modifiers: string[];
   icd10: string[];

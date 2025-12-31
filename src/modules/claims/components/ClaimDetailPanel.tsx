@@ -37,7 +37,13 @@ export const ClaimDetailPanel: React.FC = () => {
     selectedClaim.serviceType || (selectedClaim.mode === 'Telehealth' ? 'Individual Therapy - Telehealth' : 'Individual Therapy - In-Person');
   const locationDisplay = selectedClaim.location || selectedClaim.facility;
   const quickFacts = selectedClaim.clinicalQuickFacts || [
-    { title: 'Chief Complaint', value: 'Patient reports increased anxiety and difficulty sleeping over past 2 weeks...', showAction: true },
+    {
+      title: 'Chief Complaint',
+      value: 'Patient reports increased anxiety and difficulty sleeping over past 2 weeks...',
+      showAction: true,
+      details:
+        'Patient reports increased anxiety and difficulty sleeping over the past two weeks with frequent nighttime awakenings and chest tightness. Denies suicidal or homicidal ideation. Requests strategies for anxiety management and improving sleep hygiene.',
+    },
     { title: 'Session Duration', value: '52 minutes', prominent: true },
     { title: 'Primary Focus', value: 'Anxiety management, sleep hygiene' },
     { title: 'Session Type', value: 'Individual psychotherapy' },
@@ -552,7 +558,14 @@ export const ClaimDetailPanel: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 {quickFacts.map((fact) => (
-                  <QuickFact key={fact.title} title={fact.title} value={fact.value} prominent={fact.prominent} showAction={fact.showAction} />
+                  <QuickFact
+                    key={fact.title}
+                    title={fact.title}
+                    value={fact.value}
+                    prominent={fact.prominent}
+                    showAction={fact.showAction}
+                    details={fact.details}
+                  />
                 ))}
               </div>
 
@@ -994,22 +1007,40 @@ const InfoBlock: React.FC<{ title: string; rows: [string, string][] }> = ({ titl
   </div>
 );
 
-const QuickFact: React.FC<{ title: string; value: string; prominent?: boolean; showAction?: boolean }> = ({
+const QuickFact: React.FC<{ title: string; value: string; prominent?: boolean; showAction?: boolean; details?: string }> = ({
   title,
   value,
   prominent,
   showAction,
-}) => (
-  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-    <p className="text-xs text-gray-500 mb-2">{title}</p>
-    <p className={prominent ? 'text-xl font-semibold text-gray-900' : 'text-sm text-gray-900'}>{value}</p>
-    {showAction && (
-      <button className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-2">
-        Expand ▼
-      </button>
-    )}
-  </div>
-);
+  details,
+}) => {
+  const [expanded, setExpanded] = React.useState(false);
+  const detailText = details || value;
+  const shouldShowAction = !!showAction && !!detailText;
+  const showValue = !expanded || !shouldShowAction;
+
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+      <p className="text-xs text-gray-500 mb-2">{title}</p>
+      {showValue && <p className={prominent ? 'text-xl font-semibold text-gray-900' : 'text-sm text-gray-900'}>{value}</p>}
+      {shouldShowAction && (
+        <>
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            aria-expanded={expanded}
+            className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-2 inline-flex items-center gap-1"
+          >
+            {expanded ? 'Collapse ▲' : 'Expand ▼'}
+          </button>
+          {expanded && (
+            <p className="mt-2 text-xs text-gray-700 leading-relaxed">{detailText}</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
 
 const ChecklistRow: React.FC<{ label: string }> = ({ label }) => (
   <div className="flex items-center gap-2 text-sm">

@@ -243,6 +243,8 @@ export const WorkflowTab: React.FC = () => {
                                     {suggestion.type === 'cpt' && `Change CPT ${suggestion.from} → ${suggestion.to}`}
                                     {suggestion.type === 'modifier' && `Add modifier ${suggestion.add}`}
                                     {suggestion.type === 'icd10' && `Update ICD-10 ${suggestion.from} → ${suggestion.to}`}
+                                    {suggestion.type === 'pos' &&
+                                      `Update POS ${suggestion.from ?? '—'} → ${suggestion.to ?? '—'}`}
                                   </p>
                                   <p className="text-xs text-gray-500 mt-1">{suggestion.reason}</p>
                                 </div>
