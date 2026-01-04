@@ -501,7 +501,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
         {isFullscreen && (
           <div className="fixed inset-0 z-[70] bg-black flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-black/80">
+            <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 bg-black/80">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center">
                   <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -524,11 +524,11 @@ const SidePanel: React.FC<SidePanelProps> = ({
             </div>
             
             {/* Video */}
-            <div className="flex-1 flex items-center justify-center relative">
+            <div className="flex-1 min-h-0 flex items-center justify-center relative overflow-hidden">
               <video 
                 ref={fullscreenVideoRef}
                 src="/advancedMD.mp4"
-                className="max-w-full max-h-full object-contain"
+                className="w-full h-full object-contain"
                 onClick={toggleFullscreenVideo}
                 onPlay={() => setActivityVideoPlaying(true)}
                 onPause={() => setActivityVideoPlaying(false)}
@@ -550,7 +550,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
             </div>
             
             {/* Controls */}
-            <div className="bg-black/80 px-6 py-4">
+            <div className="flex-shrink-0 bg-black/80 px-6 py-4">
               <div className="flex items-center gap-4">
                 <button 
                   onClick={toggleFullscreenVideo}
