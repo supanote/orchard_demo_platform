@@ -362,7 +362,7 @@ export const ClaimDetailPanel: React.FC = () => {
                         setSelectedSuggestions(
                           selectedSuggestions.length === selectedClaim.aiSuggestions?.length
                             ? []
-                            : selectedClaim.aiSuggestions.map((_, i) => i),
+                            : selectedClaim.aiSuggestions?.map((_, i) => i) ?? [],
                         )
                       }
                       className="text-xs text-blue-600 hover:text-blue-700 font-medium"
