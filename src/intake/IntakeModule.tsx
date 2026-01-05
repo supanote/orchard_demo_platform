@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Patient } from './types';
 import { stages, patients as staticPatients, tasks, agents, activityFeed } from './data';
+import { getNextMondayShort } from './utils/dateHelpers';
 import SummaryTab from './components/SummaryTab';
 import WorkflowTab from './components/WorkflowTab';
 import TasksTab from './components/TasksTab';
@@ -17,18 +18,18 @@ const JOHN_SMITH_PATIENT: Patient = {
   name: 'John Smith',
   dob: 'May 22, 1985',
   phone: '(410) 555-8923',
-  insurance: 'Blue Cross Blue Shield',
+  insurance: 'CareFirst',
   memberId: '2452467',
-  reason: 'Primary Care',
-  source: 'form',
+  reason: 'Anxiety from work stress',
+  source: 'call',
   stage: 'verification',
   stageOrder: 4,
   time: 'Just now',
   status: 'Booked',
   handledBy: 'AI',
   escalated: false,
-  appointmentDate: 'Jan 15, 2025',
-  appointmentTime: '2:30 PM',
+  appointmentDate: getNextMondayShort(), // Next Monday
+  appointmentTime: '9:30 AM',
   provider: 'Dr. Amanda Puckett',
   benefitsVerified: true,
   copay: '$30',
@@ -61,6 +62,16 @@ const IntakeModule: React.FC = () => {
   const [summaryPayer, setSummaryPayer] = useState('all');
   const [compareToPreview, setCompareToPreview] = useState(false);
 
+  // Listen for Practice Settings sidebar click
+  useEffect(() => {
+    const handleOpenSettings = () => {
+      setShowSettingsPanel(true);
+    };
+    
+    window.addEventListener('openPracticeSettings', handleOpenSettings);
+    return () => window.removeEventListener('openPracticeSettings', handleOpenSettings);
+  }, []);
+
   // Poll API for patient status
   useEffect(() => {
     const checkPatientStatus = async () => {
@@ -69,7 +80,7 @@ const IntakeModule: React.FC = () => {
         const data = await res.json();
         
         if (data.patientAdded && !apiPatient) {
-          setApiPatient({ ...JOHN_SMITH_PATIENT, time: 'Just now' });
+          setApiPatient({ ...JOHN_SMITH_PATIENT, time: 'Just now', createdAt: Date.now() });
         } else if (!data.patientAdded && apiPatient) {
           setApiPatient(null);
           // Close panel if viewing the API patient
@@ -182,7 +193,21 @@ const IntakeModule: React.FC = () => {
       <header className="bg-white border-b border-gray-200">
         <div className="px-6 py-4 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-gray-900">Intake</h1>
-          <span className="text-sm text-gray-500">Orchard Mental Health</span>
+          <div className="flex items-center gap-3">
+            <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-gray-300 transition-colors">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Sync Zendesk
+            </button>
+            <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Sync EHR
+            </button>
+            <span className="text-sm text-gray-500">Orchard Mental Health</span>
+          </div>
         </div>
         <div className="px-6 flex gap-1">
           {['summary', 'workflow', 'tasks'].map(tab => (

@@ -24,6 +24,7 @@ export interface Patient {
   appointmentDate?: string;
   appointmentTime?: string;
   droppedReason?: string;
+  createdAt?: number; // Timestamp when patient was created (for dynamic time display)
 }
 
 export interface Stage {

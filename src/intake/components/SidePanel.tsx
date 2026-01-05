@@ -263,6 +263,37 @@ const SidePanel: React.FC<SidePanelProps> = ({
                 </div>
               )}
 
+              {/* Live Transcript Card - Only for phone call patients */}
+              {patient.handledBy === 'AI' && patient.source === 'call' && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <svg className="w-6 h-6 text-gray-500" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                        <circle cx="9" cy="10" r="2" fill="currentColor"/>
+                        <circle cx="15" cy="10" r="2" fill="currentColor"/>
+                        <path d="M9 15h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Supa is on the call</p>
+                      <p className="text-xs text-gray-500">Duration: {patient.time || '2:34'}</p>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs font-medium text-gray-500 mb-2">Live Transcript</p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium text-blue-600">Patient:</span> "...yes, I've been feeling {patient.reason?.toLowerCase().includes('anxiety') ? 'anxious' : patient.reason?.toLowerCase().includes('depression') || patient.reason?.toLowerCase().includes('grief') ? 'down' : 'unwell'} for about 3 weeks now..."
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium text-gray-500">Supa:</span> "I understand. Let me get you scheduled with one of our therapists who specializes in {patient.reason?.toLowerCase().split(',')[0]?.split(' ')[0] || 'this area'}..."
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Patient Info */}
               <div className="border border-gray-100 rounded-lg overflow-hidden">
                 <div className="px-4 py-2 bg-gray-50 border-b border-gray-100"><p className="text-xs font-medium text-gray-500 uppercase">Patient</p></div>
