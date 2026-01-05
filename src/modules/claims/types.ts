@@ -1,4 +1,4 @@
-export type ClaimStage = 'new' | 'ai-review' | 'pending' | 'submitted';
+export type ClaimStage = 'ai-review' | 'pending' | 'ready-to-submit' | 'submitted';
 
 export type WorkflowView = 'kanban' | 'table';
 
@@ -28,6 +28,17 @@ export interface AISuggestion {
   add?: string;
   reason: string;
   approved?: boolean;
+  rejected?: boolean;
+  confidence: number;
+  autoApproved?: boolean;
+}
+
+export interface ClaimActivity {
+  id: string;
+  title: string;
+  timestamp: string;
+  detail?: string;
+  level?: 'info' | 'success' | 'warning';
 }
 
 export interface ClinicalQuickFact {
@@ -92,6 +103,7 @@ export interface Claim {
   clinicalNoteSections?: ClinicalNoteSection[];
   relatedDocuments?: RelatedDocument[];
   telehealthPlatform?: string;
+  activities?: ClaimActivity[];
 }
 
 export interface Task {
@@ -125,5 +137,13 @@ export interface ClaimsUIState {
   assignDropdownOpen: string | null;
   selectedTimePeriod: string;
   isSyncingFromEhr: boolean;
+  filters: {
+    payer: string;
+    provider: string;
+    serviceType: string;
+    location: string;
+    stage: string;
+    dateRange: string;
+  };
 }
 

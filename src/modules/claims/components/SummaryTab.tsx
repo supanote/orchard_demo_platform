@@ -5,8 +5,8 @@ import { formatCurrency } from '../utils';
 export const SummaryTab: React.FC = () => {
   const {
     data: { tasks, claims },
-    state: { selectedTimePeriod },
-    actions: { setSelectedTimePeriod, setActiveTab, setSelectedClaim },
+    state: { selectedTimePeriod, filters },
+    actions: { setSelectedTimePeriod, setActiveTab, setSelectedClaim, setFilter, clearFilters },
   } = useClaims();
 
   return (
@@ -28,7 +28,11 @@ export const SummaryTab: React.FC = () => {
               <option>Custom range</option>
             </select>
             <div className="h-4 w-px bg-gray-200" />
-            <select className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900">
+            <select
+              value={filters.payer}
+              onChange={(e) => setFilter('payer', e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900"
+            >
               <option>All Payers</option>
               <option>Aetna</option>
               <option>United</option>
@@ -36,27 +40,44 @@ export const SummaryTab: React.FC = () => {
               <option>Cigna</option>
               <option>Medicare</option>
             </select>
-            <select className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900">
+            <select
+              value={filters.provider}
+              onChange={(e) => setFilter('provider', e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900"
+            >
               <option>All Providers</option>
               <option>Dr. Williams</option>
               <option>Dr. Smith</option>
               <option>Dr. Johnson</option>
               <option>Dr. Lee</option>
             </select>
-            <select className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900">
+            <select
+              value={filters.serviceType}
+              onChange={(e) => setFilter('serviceType', e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900"
+            >
               <option>All Service Types</option>
               <option>Individual Therapy</option>
               <option>Group Therapy</option>
               <option>Intake Assessment</option>
               <option>Family Therapy</option>
             </select>
-            <select className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900">
+            <select
+              value={filters.location}
+              onChange={(e) => setFilter('location', e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900"
+            >
               <option>All Locations</option>
               <option>Main Office</option>
               <option>Downtown Clinic</option>
               <option>North Campus</option>
             </select>
-            <button className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Clear Filters</button>
+            <button
+              onClick={clearFilters}
+              className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+            >
+              Clear Filters
+            </button>
           </div>
         </div>
       </div>

@@ -19,11 +19,15 @@ export const ClaimDetailPanel: React.FC = () => {
       setShowFullCMS1500,
       setSelectedSuggestions,
       approveSuggestions,
+      approveSuggestion,
+      rejectSuggestion,
+      rejectSuggestions,
     },
   } = useClaims();
 
   if (!selectedClaim) return null;
 
+  const aiSuggestions = selectedClaim.aiSuggestions ?? [];
   const stage = findStage(stages, selectedClaim.stage);
   const placeOfServiceDisplay = selectedClaim.placeOfServiceCode
     ? `${selectedClaim.placeOfServiceCode}${selectedClaim.placeOfServiceDescription ? ` - ${selectedClaim.placeOfServiceDescription}` : ''}`
@@ -83,7 +87,38 @@ export const ClaimDetailPanel: React.FC = () => {
     selectedClaim.placeOfServiceCode &&
     selectedClaim.expectedPlaceOfServiceCode &&
     selectedClaim.placeOfServiceCode !== selectedClaim.expectedPlaceOfServiceCode;
-  const telehealthMissing95 = selectedClaim.mode === 'Telehealth' && !selectedClaim.modifiers.includes('-95');
+  const telehealthMissing95 =
+    selectedClaim.mode === 'Telehealth' &&
+    (selectedClaim.aiSuggestions ?? []).some((s) => s.type === 'modifier' && s.add === '-95');
+  const activityIcon = (level: 'info' | 'success' | 'warning' = 'info') => {
+    if (level === 'success') {
+      return (
+        <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+      );
+    }
+
+    if (level === 'warning') {
+      return (
+        <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+        <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        </svg>
+      </div>
+    );
+  };
 
   return (
     <aside
@@ -98,12 +133,12 @@ export const ClaimDetailPanel: React.FC = () => {
               <div className="flex items-center gap-2 mb-2">
                 <span
                   className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                    stage.id === 'new'
-                      ? 'bg-gray-100 text-gray-700'
-                      : stage.id === 'ai-review'
+                    stage.id === 'ai-review'
                       ? 'bg-blue-50 text-blue-700'
                       : stage.id === 'pending'
                       ? 'bg-amber-50 text-amber-700'
+                      : stage.id === 'ready-to-submit'
+                      ? 'bg-cyan-50 text-cyan-700'
                       : 'bg-emerald-50 text-emerald-700'
                   }`}
                 >
@@ -123,12 +158,14 @@ export const ClaimDetailPanel: React.FC = () => {
               <span className="font-mono">CPT {selectedClaim.cpt[0]}</span>
             </div>
             <p className="text-sm text-gray-500 mt-2">
-              {selectedClaim.stage === 'pending' && selectedClaim.aiSuggestions && !selectedClaim.approvedBy
-                ? `${selectedClaim.aiSuggestions.length} AI suggestions awaiting approval`
+              {selectedClaim.stage === 'pending' && aiSuggestions.length > 0 && !selectedClaim.approvedBy
+                ? `${aiSuggestions.length} AI suggestions awaiting approval`
                 : null}
-              {selectedClaim.stage === 'pending' && selectedClaim.approvedBy ? 'Changes approved - Ready to submit' : null}
+              {(selectedClaim.stage === 'pending' || selectedClaim.stage === 'ready-to-submit') && selectedClaim.approvedBy
+                ? 'Changes approved - Ready to submit'
+                : null}
               {selectedClaim.stage === 'ai-review' ? selectedClaim.status : null}
-              {selectedClaim.stage === 'new' ? 'Ready for AI review' : null}
+              {selectedClaim.stage === 'ready-to-submit' && !selectedClaim.approvedBy ? 'Ready to submit' : null}
               {selectedClaim.stage === 'submitted' ? selectedClaim.status : null}
             </p>
           </div>
@@ -170,7 +207,7 @@ export const ClaimDetailPanel: React.FC = () => {
 
       <div className="border-b border-gray-200 px-6">
         <div className="flex gap-6">
-          {(['details', 'ai-review', 'clinical', 'submission', 'activity'] as const).map((tab) => (
+          {(['ai-review', 'details', 'clinical', 'submission', 'activity'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveDetailTab(tab)}
@@ -350,34 +387,41 @@ export const ClaimDetailPanel: React.FC = () => {
                 </div>
               )}
 
-              {selectedClaim.aiSuggestions && !selectedClaim.approvedBy && (
+              {aiSuggestions.length > 0 && !selectedClaim.approvedBy && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{selectedClaim.aiSuggestions.length} Suggestions Identified</p>
+                      <p className="text-sm font-medium text-gray-900">{aiSuggestions.length} Suggestions Identified</p>
                       <p className="text-xs text-gray-500 mt-0.5">Select which changes to apply</p>
                     </div>
                     <button
-                      onClick={() =>
-                        setSelectedSuggestions(
-                          selectedSuggestions.length === selectedClaim.aiSuggestions?.length
-                            ? []
-                            : selectedClaim.aiSuggestions.map((_, i) => i),
-                        )
-                      }
+                      onClick={() => {
+                        const selectableIndices = aiSuggestions
+                          .map((s, i) => (!s.approved && !s.rejected && !s.autoApproved ? i : -1))
+                          .filter((i) => i !== -1);
+                        const allSelectableSelected = selectableIndices.every((i) => selectedSuggestions.includes(i));
+                        setSelectedSuggestions(allSelectableSelected ? [] : selectableIndices);
+                      }}
                       className="text-xs text-blue-600 hover:text-blue-700 font-medium"
                     >
-                      {selectedSuggestions.length === selectedClaim.aiSuggestions.length ? 'Deselect All' : 'Select All'}
+                      {(() => {
+                        const selectableIndices = aiSuggestions
+                          .map((s, i) => (!s.approved && !s.rejected && !s.autoApproved ? i : -1))
+                          .filter((i) => i !== -1);
+                        const allSelectableSelected = selectableIndices.every((i) => selectedSuggestions.includes(i));
+                        return allSelectableSelected ? 'Deselect All' : 'Select All';
+                      })()}
                     </button>
                   </div>
 
                   <div className="space-y-3">
-                    {selectedClaim.aiSuggestions.map((suggestion, idx) => (
+                    {aiSuggestions.map((suggestion, idx) => (
                       <div key={idx} className="border border-gray-200 rounded-lg p-4 bg-white hover:border-gray-300 transition-colors">
                         <div className="flex items-start gap-3">
                           <input
                             type="checkbox"
-                            checked={selectedSuggestions.includes(idx)}
+                            checked={selectedSuggestions.includes(idx) || suggestion.autoApproved === true}
+                            disabled={suggestion.autoApproved === true || suggestion.approved === true || suggestion.rejected === true}
                             onChange={() =>
                               setSelectedSuggestions(
                                 selectedSuggestions.includes(idx)
@@ -385,7 +429,7 @@ export const ClaimDetailPanel: React.FC = () => {
                                   : [...selectedSuggestions, idx],
                               )
                             }
-                            className="mt-0.5 rounded border-gray-300"
+                            className="mt-0.5 rounded border-gray-300 disabled:opacity-70"
                           />
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
@@ -395,9 +439,30 @@ export const ClaimDetailPanel: React.FC = () => {
                                 {suggestion.type === 'pos' && 'Place of Service Correction'}
                                 {suggestion.type === 'icd10' && 'ICD-10 Update'}
                               </p>
-                              <span className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded">
-                                High Confidence
+                              <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-medium rounded">
+                                {suggestion.confidence}% confidence
                               </span>
+                              {suggestion.autoApproved ? (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded border border-emerald-100">
+                                  Auto-approved
+                                </span>
+                              ) : suggestion.approved ? (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded border border-emerald-100">
+                                  Approved
+                                </span>
+                              ) : suggestion.rejected ? (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-red-50 text-red-700 text-xs font-medium rounded border border-red-100">
+                                  Rejected
+                                </span>
+                              ) : suggestion.confidence > 90 ? (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded border border-emerald-100">
+                                  High confidence
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-medium rounded border border-amber-100">
+                                  Needs human review
+                                </span>
+                              )}
                             </div>
                             <p className="text-sm text-gray-900 mb-2">
                               {suggestion.type === 'cpt' && `Change: ${suggestion.from} → ${suggestion.to}`}
@@ -408,6 +473,30 @@ export const ClaimDetailPanel: React.FC = () => {
                             <p className="text-xs text-gray-600">{suggestion.reason}</p>
                             {suggestion.type === 'cpt' && (
                               <p className="text-xs text-emerald-600 mt-2">Impact: +$50 reimbursement</p>
+                            )}
+                            {!suggestion.autoApproved && !suggestion.approved && !suggestion.rejected && (
+                              <div className="flex items-center gap-2 mt-3">
+                                <button
+                                  onClick={() => {
+                                    if (selectedClaim) {
+                                      approveSuggestion(selectedClaim.id, idx);
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (selectedClaim) {
+                                      rejectSuggestion(selectedClaim.id, idx);
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                  Reject
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -428,16 +517,12 @@ export const ClaimDetailPanel: React.FC = () => {
                     </button>
                     <button
                       onClick={() => {
-                        if (selectedClaim && selectedSuggestions.length > 0) {
-                          approveSuggestions(selectedClaim.id, selectedSuggestions);
+                        if (selectedClaim) {
+                          rejectSuggestions(selectedClaim.id);
                         }
                       }}
-                      disabled={selectedSuggestions.length === 0}
-                      className="w-full py-2 px-4 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full py-2 px-4 text-gray-600 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50"
                     >
-                      Approve Selected ({selectedSuggestions.length})
-                    </button>
-                    <button className="w-full py-2 px-4 text-gray-600 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50">
                       Reject All
                     </button>
                     <button className="w-full py-2 px-4 text-gray-600 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50">
@@ -447,7 +532,7 @@ export const ClaimDetailPanel: React.FC = () => {
                 </div>
               )}
 
-              {selectedClaim.aiSuggestions && selectedClaim.approvedBy && (
+              {aiSuggestions.length > 0 && selectedClaim.approvedBy && (
                 <div className="space-y-6">
                   <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-1">
@@ -462,7 +547,7 @@ export const ClaimDetailPanel: React.FC = () => {
                   <div>
                     <p className="text-xs font-medium text-gray-500 uppercase mb-3">Applied Changes</p>
                     <div className="space-y-3">
-                      {selectedClaim.aiSuggestions.map((suggestion, idx) => (
+                      {aiSuggestions.map((suggestion, idx) => (
                         <div key={idx} className="border border-gray-200 rounded-lg p-4 bg-white">
                           <div className="flex items-start gap-3">
                             <div className="mt-0.5">
@@ -490,7 +575,7 @@ export const ClaimDetailPanel: React.FC = () => {
                                 </p>
                                 {suggestion.approved !== false ? (
                                   <span className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded">
-                                    Applied
+                                    {suggestion.autoApproved ? 'Auto-applied' : 'Applied'}
                                   </span>
                                 ) : (
                                   <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded">
@@ -520,7 +605,7 @@ export const ClaimDetailPanel: React.FC = () => {
                 </div>
               )}
 
-              {!selectedClaim.aiSuggestions && selectedClaim.stage !== 'ai-review' && (
+              {aiSuggestions.length === 0 && selectedClaim.stage !== 'ai-review' && (
                 <div className="text-center py-12">
                   <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -836,6 +921,16 @@ export const ClaimDetailPanel: React.FC = () => {
           {activeDetailTab === 'activity' && (
             <div className="p-6">
               <div className="space-y-6">
+                {selectedClaim.activities?.map((activity) => (
+                  <TimelineItem
+                    key={activity.id}
+                    icon={activityIcon(activity.level)}
+                    title={activity.title}
+                    timestamp={activity.timestamp}
+                    body={<p className="text-sm text-gray-600">{activity.detail}</p>}
+                  />
+                ))}
+
                 {selectedClaim.stage === 'submitted' && selectedClaim.status === 'Accepted' && (
                   <TimelineItem
                     icon={
@@ -901,7 +996,7 @@ export const ClaimDetailPanel: React.FC = () => {
                   />
                 )}
 
-                {selectedClaim.aiSuggestions && (
+                {aiSuggestions.length > 0 && (
                   <>
                     <TimelineItem
                       icon={
@@ -918,14 +1013,15 @@ export const ClaimDetailPanel: React.FC = () => {
                       body={
                         <>
                           <p className="text-sm text-gray-600">
-                            Analyzed claim and identified {selectedClaim.aiSuggestions.length} suggestions
+                            Analyzed claim and identified {aiSuggestions.length} suggestions
                           </p>
                           <ul className="text-xs text-gray-500 mt-2 space-y-0.5 list-disc list-inside">
-                            {selectedClaim.aiSuggestions.slice(0, 3).map((suggestion, index) => (
+                            {aiSuggestions.slice(0, 3).map((suggestion, index) => (
                               <li key={index}>
                                 {suggestion.type === 'cpt' && 'CPT code change recommended'}
                                 {suggestion.type === 'modifier' && 'Missing modifier identified'}
                                 {suggestion.type === 'icd10' && 'ICD-10 specificity improvement'}
+                                {suggestion.type === 'pos' && 'Place of service correction recommended'}
                               </li>
                             ))}
                           </ul>
