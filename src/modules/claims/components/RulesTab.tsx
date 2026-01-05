@@ -71,14 +71,13 @@ export const RulesTab: React.FC = () => {
 
           <div className="flex items-center justify-between text-xs text-gray-500">
             <p>
-              Tip: For the demo, add “Provider must be licensed in patient’s location” to trigger the new licensing
-              suggestion.
+              Tip: For the demo, add “ICD-10 Sequencing” to trigger the new sequencing suggestion.
             </p>
             <button
               onClick={() =>
                 setNewRule({
-                  name: 'Provider must be licensed in patient’s location',
-                  description: 'Flag cross-state telehealth sessions unless provider holds the patient’s state license.',
+                  name: 'ICD-10 Sequencing',
+                  description: 'Primary diagnosis must be sequenced first based on clinical acuity.',
                 })
               }
               className="text-blue-600 hover:text-blue-700 font-medium"

@@ -299,11 +299,11 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   }, [claims]);
 
-  const hasLicensingRule = useMemo(
+  const hasICDSequencingRule = useMemo(
     () =>
       rules.some(
         (rule) =>
-          rule.name.toLowerCase().includes('licensed') || rule.description.toLowerCase().includes('licensed in patient'),
+          rule.name.toLowerCase().includes('icd-10 sequencing') || rule.description.toLowerCase().includes('sequenced first'),
       ),
     [rules],
   );
@@ -319,18 +319,18 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const suggestions = [...(claim.aiSuggestions ?? [])].map(ensureSuggestionConfidence);
 
     if (
-      hasLicensingRule &&
-      claim.mode === 'Telehealth' &&
-      claim.providerState &&
-      claim.patientState &&
-      claim.providerState !== claim.patientState
+      hasICDSequencingRule &&
+      claim.icd10 &&
+      claim.icd10.length >= 2 &&
+      claim.icd10[0] === 'R45.851' &&
+      claim.icd10[1] === 'F41.1'
     ) {
       suggestions.push({
-        type: 'pos',
-        from: `${claim.providerState} provider license`,
-        to: `${claim.patientState} patient location`,
-        reason: 'Provider must be licensed in the patient’s location for telehealth sessions.',
-        confidence: 78,
+        type: 'icd10',
+        from: 'R45.851, F41.1',
+        to: 'F41.1, R45.851',
+        reason: 'Primary diagnosis must be sequenced first based on clinical acuity (Rule: ICD-10 Sequencing).',
+        confidence: 89,
       });
     }
 
