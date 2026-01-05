@@ -3,6 +3,58 @@ import { claims as seedClaims, ehrSyncBatches, rules as seedRules, stages as see
 import type { ActiveTab, ClaimsUIState, Claim, ClaimActivity, DetailTab, Rule, Task, WorkflowView } from './types';
 import { toggleItem } from './utils';
 
+// API URL for advanced_md_clone - uses environment variable or defaults for local/production
+const ADVANCED_MD_API_URL = import.meta.env.VITE_ADVANCED_MD_API_URL || 'http://localhost:3000';
+
+// Sync charge changes to advanced_md_clone
+const syncToAdvancedMD = async (claim: Claim) => {
+  try {
+    const approvedModifierSuggestions = claim.aiSuggestions?.filter(
+      s => s.approved && s.type === 'modifier' && s.add
+    ) || [];
+
+    const approvedCptSuggestion = claim.aiSuggestions?.find(
+      s => s.approved && s.type === 'cpt' && s.to
+    );
+
+    const approvedIcdSuggestion = claim.aiSuggestions?.find(
+      s => s.approved && s.type === 'icd10' && s.to
+    );
+
+    const approvedPosSuggestion = claim.aiSuggestions?.find(
+      s => s.approved && s.type === 'pos' && s.to
+    );
+
+    const payload: Record<string, unknown> = {
+      chargeId: String(claim.id),
+      modifiers: [
+        ...claim.modifiers,
+        ...approvedModifierSuggestions.map(s => s.add).filter(Boolean)
+      ],
+      procedure: approvedCptSuggestion?.to || claim.cpt[0],
+      diagnosis: approvedIcdSuggestion?.to || claim.icd10.join(', '),
+    };
+
+    // Include POS if changed
+    if (approvedPosSuggestion?.to) {
+      // Extract POS code from "02 - Telehealth" format
+      const posMatch = approvedPosSuggestion.to.match(/^(\d+)/);
+      if (posMatch) {
+        payload.placeOfService = posMatch[1];
+      }
+    }
+
+    await fetch(`${ADVANCED_MD_API_URL}/api/charges/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    console.error('Failed to sync to AdvancedMD:', error);
+  }
+};
+
+
 type ClaimsAction =
   | { type: 'setActiveTab'; value: ActiveTab }
   | { type: 'setWorkflowView'; value: WorkflowView }
@@ -354,7 +406,7 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ? `Ready to submit (auto-approved ${autoApprovedCount}/${updatedSuggestions.length})`
       : `Auto-approved ${autoApprovedCount}/${updatedSuggestions.length}; ${remainingCount} need review`;
 
-    return {
+    const updatedClaim: Claim = {
       ...claim,
       aiSuggestions: updatedSuggestions,
       stage: allApproved ? 'ready-to-submit' : 'pending',
@@ -364,6 +416,11 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       timeInStage: 'Just now',
       activities: updatedActivities,
     };
+
+    // Sync auto-approved changes to advanced_md_clone
+    syncToAdvancedMD(updatedClaim);
+
+    return updatedClaim;
   };
 
   const actions = useMemo(
@@ -521,6 +578,11 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             dispatch({ type: 'updateSelectedClaim', claim: updatedClaim });
           }
 
+          // Sync to advanced_md_clone
+          if (updatedClaim) {
+            syncToAdvancedMD(updatedClaim);
+          }
+
           return updated;
         });
       },
@@ -561,6 +623,11 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const updatedClaim = updated.find((c) => c.id === claimId);
           if (updatedClaim && state.selectedClaim?.id === claimId) {
             dispatch({ type: 'updateSelectedClaim', claim: updatedClaim });
+          }
+
+          // Sync to advanced_md_clone
+          if (updatedClaim) {
+            syncToAdvancedMD(updatedClaim);
           }
 
           return updated;
