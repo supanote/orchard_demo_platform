@@ -120,6 +120,7 @@ const Icon = ({ name, className = 'w-5 h-5', ...rest }: IconProps & ComponentPro
   const icon = icons[name]
   if (!icon) return null
 
+  return cloneElement(icon, { className, ...rest } as React.SVGProps<SVGSVGElement>)
   return cloneElement<ComponentPropsWithoutRef<'svg'>>(icon, { className, ...rest })
 }
 

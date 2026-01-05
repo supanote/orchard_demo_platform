@@ -61,6 +61,12 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
     setActiveNav(item.id)
 
+    // Special handling for Practice Settings - dispatch custom event
+    if (item.id === 'settings') {
+      window.dispatchEvent(new CustomEvent('openPracticeSettings'))
+      return
+    }
+
     if (item.path) {
       navigate(item.path)
     }
