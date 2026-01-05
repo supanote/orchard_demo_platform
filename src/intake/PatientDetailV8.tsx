@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { getTimestampToday, getRelativeDateWithDay, getDateTimeString, getPastDateWithTime, getFaxDateFormat, getEdiShortDate, getEdiLongDate, getNextMonday, getNextMondayShort } from './utils/dateHelpers';
 
 interface Patient {
   id: number;
@@ -26,7 +27,24 @@ interface Patient {
   appointmentDate?: string;
   appointmentTime?: string;
   droppedReason?: string;
+  createdAt?: number; // Timestamp when patient was created
 }
+
+// Helper to format timestamp based on patient creation time (for John Smith dynamic timestamps)
+const formatDynamicTimestamp = (createdAt: number | undefined, offsetMinutes: number = 0): string => {
+  if (!createdAt) return getTimestampToday(0, 0);
+  const date = new Date(createdAt + offsetMinutes * 60 * 1000);
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const day = date.getDate();
+  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  return `${month} ${day}, ${time}`;
+};
+
+const formatDynamicTime = (createdAt: number | undefined, offsetMinutes: number = 0): string => {
+  if (!createdAt) return '0:00';
+  const date = new Date(createdAt + offsetMinutes * 60 * 1000);
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+};
 
 interface PatientDetailV8Props {
   patient: Patient;
@@ -249,20 +267,43 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
 
   const stages = [
     { id: 'extraction', name: 'Data Extraction', order: 0 },
-    { id: 'outreach', name: 'Patient Outreach', order: 1 },
+    { id: 'outreach', name: 'Patient Contact', order: 1 },
     { id: 'intake', name: 'Intake & Scheduling', order: 2 },
     { id: 'verification', name: 'Benefits Verification', order: 3 },
-    { id: 'completed', name: 'Completed', order: 4 },
+    { id: 'completed', name: 'Booked/ Completed', order: 4 },
   ];
 
-  const agentSteps = [
+  // Different agent steps for John Smith (phone call intake) vs other patients (fax referral)
+  // Note: isJohnSmith is already declared above
+  
+  // Helper to get dynamic time for John Smith workflow steps
+  const getJohnSmithTime = (offsetMinutes: number) => patient?.createdAt ? formatDynamicTime(patient.createdAt, offsetMinutes) : '9:30 AM';
+  const getJohnSmithActivityTime = (offsetSeconds: number) => {
+    if (!patient?.createdAt) return '9:30:00 AM';
+    const date = new Date(patient.createdAt + offsetSeconds * 1000);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+  };
+  
+  const agentSteps = isJohnSmith ? [
+    { id: 1, name: 'Data Extraction', status: 'complete', time: getJohnSmithTime(0), duration: 'N/A', activities: [{ action: 'Inbound call received', time: getJohnSmithActivityTime(0), status: 'complete' }, { action: 'No document extraction needed (phone intake)', time: getJohnSmithActivityTime(1), status: 'complete' }] },
+    { id: 2, name: 'Patient Outreach', status: 'complete', time: getJohnSmithTime(0), duration: '4 min', activities: [{ action: 'Inbound call answered', time: getJohnSmithActivityTime(0), status: 'complete' }, { action: 'Patient identity verified', time: getJohnSmithActivityTime(15), status: 'complete' }, { action: 'Patient intake completed via call', time: getJohnSmithActivityTime(240), status: 'complete' }] },
+    { id: 3, name: 'Intake & Scheduling', status: 'complete', time: getJohnSmithTime(4), duration: '2 min', activities: [{ action: 'DOB verified via conversation', time: getJohnSmithActivityTime(250), status: 'complete' }, { action: 'Insurance confirmed: CareFirst', time: getJohnSmithActivityTime(270), status: 'complete' }, { action: 'Appointment booked for ' + getNextMondayShort() + ' at 9:30 AM', time: getJohnSmithActivityTime(360), status: 'complete' }] },
+    { id: 4, name: 'Benefits Verification', status: 'complete', time: getJohnSmithTime(6), duration: '15 sec', activities: [{ action: 'EDI 270 request sent to CareFirst', time: getJohnSmithActivityTime(365), status: 'complete' }, { action: 'EDI 271 response received', time: getJohnSmithActivityTime(372), status: 'complete' }, { action: 'Coverage confirmed: Active, $30 copay', time: getJohnSmithActivityTime(375), status: 'complete' }] },
+  ] : [
     { id: 1, name: 'Data Extraction', status: 'complete', time: '9:42 AM', duration: '< 1 min', activities: [{ action: 'Fax received from Austin Family Medicine', time: '9:42:01 AM', status: 'complete' }, { action: 'Document type identified: Patient Referral', time: '9:42:03 AM', status: 'complete' }, { action: 'Patient demographics extracted (4 fields)', time: '9:43:01 AM', status: 'complete' }, { action: 'Member ID flagged for review (67% confidence)', time: '9:43:30 AM', status: 'warning' }] },
     { id: 2, name: 'Patient Outreach', status: 'complete', time: '9:45 AM', duration: '33 min', activities: [{ action: 'Patient added to outreach queue', time: '9:45:00 AM', status: 'complete' }, { action: 'Outbound call initiated', time: '10:15:00 AM', status: 'complete' }, { action: 'Call connected with patient', time: '10:15:08 AM', status: 'complete' }] },
     { id: 3, name: 'Intake & Scheduling', status: 'complete', time: '10:15 AM', duration: '3 min', activities: [{ action: 'DOB verified via conversation', time: '10:15:32 AM', status: 'complete' }, { action: 'Insurance confirmed', time: '10:15:42 AM', status: 'complete' }, { action: 'Appointment booked', time: '10:19:00 AM', status: 'complete' }] },
     { id: 4, name: 'Benefits Verification', status: 'complete', time: '10:19 AM', duration: '15 sec', activities: [{ action: 'EDI 270 request sent to Aetna', time: '10:19:05 AM', status: 'complete' }, { action: 'EDI 271 response received', time: '10:19:12 AM', status: 'complete' }, { action: 'Coverage confirmed: Active, $30 copay', time: '10:19:15 AM', status: 'complete' }] },
   ];
 
-  const referralFields = [
+  const referralFields = isJohnSmith ? [
+    { section: 'Patient', field: 'Name', value: 'John Smith', confidence: 100, status: 'ok' },
+    { section: 'Patient', field: 'DOB', value: 'May 22, 1985', confidence: 100, status: 'ok' },
+    { section: 'Patient', field: 'Phone', value: '(410) 555-8923', confidence: 100, status: 'ok' },
+    { section: 'Insurance', field: 'Payer', value: 'CareFirst', confidence: 100, status: 'ok' },
+    { section: 'Insurance', field: 'Member ID', value: '2452467', confidence: 100, status: 'ok' },
+    { section: 'Service', field: 'Reason', value: 'Anxiety from work stress', confidence: 100, status: 'ok' },
+  ] : [
     { section: 'Patient', field: 'Name', value: patientData.name, confidence: 98, status: 'ok' },
     { section: 'Patient', field: 'DOB', value: patientData.dob, confidence: 99, status: 'ok' },
     { section: 'Patient', field: 'Phone', value: patientData.phone, confidence: 95, status: 'ok' },
@@ -271,7 +312,13 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
     { section: 'Service', field: 'Reason', value: patient?.reason || 'Anxiety, Depression', confidence: 94, status: 'ok' },
   ];
 
-  const outreachFields = [
+  const outreachFields = isJohnSmith ? [
+    { field: 'DOB Verified', value: patientData.dob, source: '0:15', timestamp: 15, status: 'verified' },
+    { field: 'Insurance Verified', value: 'CareFirst', source: '0:30', timestamp: 30, status: 'verified' },
+    { field: 'Chief Complaint', value: 'Anxiety from work stress', source: '0:48', timestamp: 48, status: 'extracted' },
+    { field: 'Availability', value: 'Mornings, before 10am', source: '1:15', timestamp: 75, status: 'extracted' },
+    { field: 'Modality', value: 'In-person preferred', source: '1:28', timestamp: 88, status: 'extracted' },
+  ] : [
     { field: 'DOB Verified', value: patientData.dob, source: '0:32', timestamp: 32, status: 'verified' },
     { field: 'Insurance Verified', value: patient?.insurance || 'Aetna', source: '0:42', timestamp: 42, status: 'verified' },
     { field: 'Chief Complaint', value: patient?.reason || 'Anxiety, stress affecting sleep and work', source: '1:02', timestamp: 62, status: 'extracted' },
@@ -279,7 +326,28 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
     { field: 'Modality', value: 'Open to telehealth or in-person', source: '1:52', timestamp: 112, status: 'extracted' },
   ];
 
-  const transcriptLines = [
+  const transcriptLines = isJohnSmith ? [
+    { time: '0:00', timestamp: 0, speaker: 'AI', text: 'Thank you for calling Mindful Recovery Center. My name is Ava, how can I help you today?' },
+    { time: '0:06', timestamp: 6, speaker: 'Patient', text: 'Hi, I\'d like to schedule an appointment. I\'ve been dealing with some anxiety lately.' },
+    { time: '0:12', timestamp: 12, speaker: 'AI', text: 'I\'m sorry to hear that, but I\'m glad you reached out. I\'d be happy to help you get scheduled. May I have your name please?' },
+    { time: '0:18', timestamp: 18, speaker: 'Patient', text: 'John Smith.' },
+    { time: '0:20', timestamp: 20, speaker: 'AI', text: 'Thank you, John. For verification purposes, can you please confirm your date of birth?' },
+    { time: '0:25', timestamp: 25, speaker: 'Patient', text: 'May 22nd, 1985.', highlight: 'DOB Verified', extracted: true },
+    { time: '0:28', timestamp: 28, speaker: 'AI', text: 'Perfect, thank you. And what insurance do you have?' },
+    { time: '0:32', timestamp: 32, speaker: 'Patient', text: 'CareFirst, through my employer.', highlight: 'Insurance Verified', extracted: true },
+    { time: '0:36', timestamp: 36, speaker: 'AI', text: 'Great, we\'re in-network with CareFirst. Can you tell me a little more about what you\'re experiencing?' },
+    { time: '0:44', timestamp: 44, speaker: 'Patient', text: 'I\'ve been having a lot of anxiety from work stress. It\'s affecting my sleep and concentration.', highlight: 'Chief Complaint', extracted: true },
+    { time: '0:56', timestamp: 56, speaker: 'AI', text: 'I understand. That sounds really challenging. We have therapists who specialize in work-related anxiety. What times work best for you?' },
+    { time: '1:08', timestamp: 68, speaker: 'Patient', text: 'Mornings are best for me, ideally before 10am.', highlight: 'Availability', extracted: true },
+    { time: '1:15', timestamp: 75, speaker: 'AI', text: 'Mornings before 10am, got it. Do you prefer in-person or telehealth?' },
+    { time: '1:22', timestamp: 82, speaker: 'Patient', text: 'In-person would be better for me.', highlight: 'Modality Preference', extracted: true },
+    { time: '1:28', timestamp: 88, speaker: 'AI', text: `Let me check our availability. I have Dr. Amanda Puckett available ${getNextMonday('9:30 AM')} for an in-person session. She specializes in anxiety and stress management. Would that work?` },
+    { time: '1:48', timestamp: 108, speaker: 'Patient', text: 'Monday at 9:30 works great!' },
+    { time: '1:52', timestamp: 112, speaker: 'AI', text: `Excellent! I've got you booked with Dr. Amanda Puckett for ${getNextMonday('9:30 AM')}. You'll receive a confirmation text with the address and some intake forms.` },
+    { time: '2:08', timestamp: 128, speaker: 'Patient', text: 'Thank you so much for your help.' },
+    { time: '2:12', timestamp: 132, speaker: 'AI', text: 'You\'re welcome, John. We look forward to seeing you Monday. Take care!' },
+    { time: '2:18', timestamp: 138, speaker: 'Patient', text: 'Thanks, goodbye!' },
+  ] : [
     { time: '0:00', timestamp: 0, speaker: 'AI', text: 'Hi, this is calling from Mindful Recovery Center. Am I speaking with ' + patientData.name + '?' },
     { time: '0:08', timestamp: 8, speaker: 'Patient', text: 'Yes, this is ' + (patientData.name?.split(' ')[0] || 'me') + '.' },
     { time: '0:12', timestamp: 12, speaker: 'AI', text: 'Great! I\'m reaching out because we received a referral from your doctor. We\'d love to help get you scheduled for an initial consultation. Do you have a few minutes to go over some information?' },
@@ -296,7 +364,7 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
     { time: '1:52', timestamp: 112, speaker: 'Patient', text: 'I\'m open to either, honestly. Whatever is easier to get started.', highlight: 'Modality Preference', extracted: true },
     { time: '1:58', timestamp: 118, speaker: 'AI', text: 'That flexibility helps! Let me check our availability. I have Dr. Emily Watson available this Tuesday at 3:30 PM for a telehealth session. She has great experience with anxiety and has wonderful patient reviews. Would that work for you?' },
     { time: '2:15', timestamp: 135, speaker: 'Patient', text: 'Tuesday at 3:30 sounds perfect actually.' },
-    { time: '2:19', timestamp: 139, speaker: 'AI', text: 'Excellent! I\'ve got you booked with Dr. Watson for Tuesday, December 31st at 3:30 PM via telehealth. You\'ll receive a confirmation email shortly with the video link and some intake forms to complete before your appointment.' },
+    { time: '2:19', timestamp: 139, speaker: 'AI', text: `Excellent! I've got you booked with Dr. Watson for ${getDateTimeString(2, '3:30 PM')} via telehealth. You'll receive a confirmation email shortly with the video link and some intake forms to complete before your appointment.` },
     { time: '2:35', timestamp: 155, speaker: 'Patient', text: 'Great, thank you so much for helping me get this set up.' },
     { time: '2:40', timestamp: 160, speaker: 'AI', text: 'You\'re very welcome! Is there anything else I can help you with today?' },
     { time: '2:45', timestamp: 165, speaker: 'Patient', text: 'No, I think that covers everything.' },
@@ -304,14 +372,19 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
     { time: '2:53', timestamp: 173, speaker: 'Patient', text: 'Thanks, you too. Goodbye!' },
   ];
 
-  const matchingFunnel = [
+  const matchingFunnel = isJohnSmith ? [
+    { stage: 'Payer Accepted', count: 2, description: 'Accept CareFirst', providers: ['Dr. Amanda Puckett', 'Dr. Naomi Lee'] },
+    { stage: 'Clinical Match', count: 2, description: 'Specialize in Anxiety', providers: ['Dr. Amanda Puckett', 'Dr. Naomi Lee'] },
+    { stage: 'Availability', count: 1, description: 'Have slots ' + getNextMondayShort() + ' at 9:30 AM', providers: ['Dr. Amanda Puckett'] },
+    { stage: 'Selected', count: 1, description: 'Best match', providers: ['Dr. Amanda Puckett'] },
+  ] : [
     { stage: 'Payer Accepted', count: 13, description: 'Accept ' + (patient?.insurance || 'Aetna'), providers: ['Dr. Emily Watson', 'Dr. James Liu', 'Sarah Martinez, LCSW'] },
     { stage: 'Clinical Match', count: 8, description: 'Specialize in ' + (patient?.reason || 'Anxiety'), providers: ['Dr. Emily Watson', 'Dr. James Liu'] },
     { stage: 'Availability', count: 3, description: 'Have slots after 3pm', providers: ['Dr. Emily Watson'] },
     { stage: 'Selected', count: 1, description: 'Best match', providers: ['Dr. Emily Watson'] },
   ];
 
-  const bvResults = { status: 'Active', payer: patient?.insurance || 'Aetna', memberId: patient?.memberId || 'W123456789', networkStatus: 'In-Network', copay: patient?.copay || '$30', coinsurance: '20%', deductible: '$500 (met)', oopMax: '$3,000', visitLimit: 'Unlimited', priorAuth: 'Not required' };
+  const bvResults = { status: 'Active', payer: patient?.insurance || 'Aetna', memberId: patient?.memberId || 'W123456789', networkStatus: 'In-Network', copay: patient?.copay || '$30', coinsurance: isJohnSmith ? '0%' : '20%', deductible: '$500', oopMax: '$3,000', visitLimit: 'Unlimited', priorAuth: 'Not required' };
 
   const toggleStep = (stepId: number) => setExpandedSteps(prev => prev.includes(stepId) ? prev.filter(id => id !== stepId) : [...prev, stepId]);
   const getStageState = (stageOrder: number) => stageOrder < patientData.currentStage ? 'completed' : stageOrder === patientData.currentStage ? 'current' : 'pending';
@@ -373,37 +446,59 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
         {activeTab === 'extraction' && (
           <div className="flex w-full h-[calc(100vh-140px)]">
             <div className="flex-[6] border-r border-gray-100 overflow-auto bg-gray-100 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3"><SourceBadge type={patient?.source || 'fax'} /><span className="text-sm text-gray-500">from Austin Family Medicine</span><span className="text-sm text-gray-400">• Dec 26, 9:42 AM</span></div>
-              </div>
-              <div className="bg-white shadow-lg rounded-sm overflow-hidden" style={{ fontFamily: 'Courier, monospace' }}>
-                <div className="bg-gray-50 px-8 py-4 border-b border-gray-200 text-xs text-gray-500">
-                  <div className="flex justify-between"><span>FAX TRANSMISSION</span><span>12/26/2025 09:42 AM</span></div>
-                  <div className="flex justify-between mt-1"><span>FROM: AUSTIN FAMILY MEDICINE</span><span>PAGE 1 OF 1</span></div>
+              {isJohnSmith ? (
+                /* Phone call intake - no document to extract */
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-700 mb-2">Phone Intake</h3>
+                  <p className="text-sm text-gray-500 max-w-md">This patient was added via inbound phone call. No document extraction was required - all information was collected during the conversation.</p>
+                  <div className="mt-6 px-4 py-3 bg-white rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                      <span>Patient contact completed</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="px-8 py-6 text-sm leading-relaxed">
-                  <div className="text-center mb-6 pb-4 border-b border-gray-300"><p className="font-bold text-base">AUSTIN FAMILY MEDICINE</p><p className="text-xs text-gray-600">1500 Medical Parkway, Suite 200, Austin, TX 78756</p></div>
-                  <p className="font-bold text-center mb-6">PATIENT REFERRAL FORM</p>
-                  <div className="mb-5"><p className="font-bold text-xs mb-2 underline">PATIENT INFORMATION</p>
-                    <p>Patient Name: <span className="px-0.5 bg-gray-100">{patientData.name}</span></p>
-                    <p>Date of Birth: <span className="px-0.5 bg-gray-100">{patientData.dob}</span></p>
-                    <p>Phone: <span className="px-0.5 bg-gray-100">{patientData.phone}</span></p>
+              ) : (
+                /* Fax referral - show document */
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3"><SourceBadge type={patient?.source || 'fax'} /><span className="text-sm text-gray-500">from Austin Family Medicine</span><span className="text-sm text-gray-400">• {getTimestampToday(2, 18)}</span></div>
                   </div>
-                  <div className="mb-5"><p className="font-bold text-xs mb-2 underline">INSURANCE INFORMATION</p>
-                    <p>Insurance: <span className="px-0.5 bg-gray-100">{patient?.insurance || 'Aetna'}</span></p>
-                    <p>Member ID: <span className="px-0.5 bg-gray-100 border-b-2 border-gray-400 border-dashed">{patient?.memberId || 'W123456789'}</span><span className="text-[10px] text-gray-600 ml-1">(unclear)</span></p>
+                  <div className="bg-white shadow-lg rounded-sm overflow-hidden" style={{ fontFamily: 'Courier, monospace' }}>
+                    <div className="bg-gray-50 px-8 py-4 border-b border-gray-200 text-xs text-gray-500">
+                      <div className="flex justify-between"><span>FAX TRANSMISSION</span><span>{getFaxDateFormat(2)}</span></div>
+                      <div className="flex justify-between mt-1"><span>FROM: AUSTIN FAMILY MEDICINE</span><span>PAGE 1 OF 1</span></div>
+                    </div>
+                    <div className="px-8 py-6 text-sm leading-relaxed">
+                      <div className="text-center mb-6 pb-4 border-b border-gray-300"><p className="font-bold text-base">AUSTIN FAMILY MEDICINE</p><p className="text-xs text-gray-600">1500 Medical Parkway, Suite 200, Austin, TX 78756</p></div>
+                      <p className="font-bold text-center mb-6">PATIENT REFERRAL FORM</p>
+                      <div className="mb-5"><p className="font-bold text-xs mb-2 underline">PATIENT INFORMATION</p>
+                        <p>Patient Name: <span className="px-0.5 bg-gray-100">{patientData.name}</span></p>
+                        <p>Date of Birth: <span className="px-0.5 bg-gray-100">{patientData.dob}</span></p>
+                        <p>Phone: <span className="px-0.5 bg-gray-100">{patientData.phone}</span></p>
+                      </div>
+                      <div className="mb-5"><p className="font-bold text-xs mb-2 underline">INSURANCE INFORMATION</p>
+                        <p>Insurance: <span className="px-0.5 bg-gray-100">{patient?.insurance || 'Aetna'}</span></p>
+                        <p>Member ID: <span className="px-0.5 bg-gray-100 border-b-2 border-gray-400 border-dashed">{patient?.memberId || 'W123456789'}</span><span className="text-[10px] text-gray-600 ml-1">(unclear)</span></p>
+                      </div>
+                      <div className="mb-5"><p className="font-bold text-xs mb-2 underline">REFERRAL DETAILS</p>
+                        <p>Service Requested: <span className="px-0.5 bg-gray-100">Individual Therapy</span></p>
+                        <p>Reason: <span className="px-0.5 bg-gray-100">{patient?.reason || 'Anxiety, Depression'}</span></p>
+                      </div>
+                      <div className="pt-4 border-t border-gray-300"><p className="italic">Electronically signed by Dr. Michael Roberts, MD</p><p className="text-xs text-gray-500">Date: {getFaxDateFormat(2).split(' ')[0]}</p></div>
+                    </div>
                   </div>
-                  <div className="mb-5"><p className="font-bold text-xs mb-2 underline">REFERRAL DETAILS</p>
-                    <p>Service Requested: <span className="px-0.5 bg-gray-100">Individual Therapy</span></p>
-                    <p>Reason: <span className="px-0.5 bg-gray-100">{patient?.reason || 'Anxiety, Depression'}</span></p>
-                  </div>
-                  <div className="pt-4 border-t border-gray-300"><p className="italic">Electronically signed by Dr. Michael Roberts, MD</p><p className="text-xs text-gray-500">Date: 12/26/2025</p></div>
-                </div>
-              </div>
+                </>
+              )}
             </div>
             <div className="flex-[4] overflow-auto p-6">
-              <div className="flex items-center justify-between mb-5"><div><span className="text-sm font-medium text-gray-900">Extracted Data</span><span className="text-xs text-gray-400 ml-2">6 fields</span></div>
-                {!reviewingField && <div className="flex items-center gap-2"><span className="w-2 h-2 bg-gray-400 rounded-full"></span><span className="text-xs text-gray-600">1 needs review</span></div>}
+              <div className="flex items-center justify-between mb-5"><div><span className="text-sm font-medium text-gray-900">{isJohnSmith ? 'Patient Information' : 'Extracted Data'}</span><span className="text-xs text-gray-400 ml-2">6 fields</span></div>
+                {!reviewingField && !isJohnSmith && <div className="flex items-center gap-2"><span className="w-2 h-2 bg-gray-400 rounded-full"></span><span className="text-xs text-gray-600">1 needs review</span></div>}
               </div>
               {reviewingField && (
                 <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
@@ -447,10 +542,42 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
             
             <div className="flex-[6] border-r border-gray-100 overflow-auto bg-gray-50 p-6 flex flex-col">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3"><SourceBadge type="call" /><span className="text-sm text-gray-500">Dec 26, 10:15 AM</span><span className="text-sm text-gray-400">• {formatTime(audioDuration)}</span></div>
+                <div className="flex items-center gap-3"><SourceBadge type="call" /><span className="text-sm text-gray-500">{isJohnSmith && patient?.createdAt ? formatDynamicTimestamp(patient.createdAt, 0) : getTimestampToday(1, 45)}</span><span className="text-sm text-gray-400">• {formatTime(audioDuration)}</span></div>
                 <span className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>Connected</span>
               </div>
               <div className="mb-4 px-3 py-2 bg-emerald-50 rounded-lg inline-flex items-center gap-2 text-sm text-emerald-700 self-start"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Contacted within 33 min • SLA met</div>
+              
+              {/* Live Transcript Preview Card */}
+              {patient?.handledBy === 'AI' && (
+                <div className="mb-4 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
+                      <svg className="w-6 h-6 text-gray-600" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                        <circle cx="9" cy="10" r="2" fill="currentColor"/>
+                        <circle cx="15" cy="10" r="2" fill="currentColor"/>
+                        <path d="M9 15h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Supa is on the call</p>
+                      <p className="text-xs text-gray-500">Duration: {formatTime(audioDuration)}</p>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs font-medium text-gray-500 mb-2">Live Transcript</p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium text-blue-600">Patient:</span> "...yes, I've been feeling {patient?.reason?.toLowerCase().includes('anxiety') ? 'anxious' : patient?.reason?.toLowerCase().includes('depression') ? 'down' : 'unwell'} for about {isJohnSmith ? '3 weeks' : 'a few weeks'} now..."
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium text-gray-500">Supa:</span> "I understand. Let me get you scheduled with one of our therapists who specializes in {patient?.reason?.toLowerCase().split(',')[0] || 'this area'}..."
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col">
                 {!showTranscript ? (
                   <div className="flex-1 flex flex-col items-center justify-center">
@@ -573,7 +700,7 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
           <div className="flex w-full h-[calc(100vh-140px)]">
             <div className="flex-[6] border-r border-gray-100 overflow-auto bg-gray-50 p-6">
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3"><SourceBadge type="call" /><span className="text-sm text-gray-500">Intake call • Dec 26, 10:15 AM</span></div>
+                <div className="flex items-center gap-3"><SourceBadge type="call" /><span className="text-sm text-gray-500">Intake call • {isJohnSmith && patient?.createdAt ? formatDynamicTimestamp(patient.createdAt, 0) : getTimestampToday(1, 45)}</span></div>
                 <button className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-600"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>Play</button>
               </div>
               <div className="bg-white rounded-lg border border-gray-200 mb-6">
@@ -610,7 +737,7 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
             <div className="flex-[4] overflow-auto p-6">
               <div className="flex items-center justify-between mb-5"><span className="text-sm font-medium text-gray-900">Appointment</span><span className="flex items-center gap-1.5 text-xs text-gray-600"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Booked</span></div>
               <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-6">
-                <div className="flex items-start gap-4"><div className="w-12 h-12 bg-white border border-gray-200 rounded-lg flex items-center justify-center text-xl">📅</div><div><p className="text-base font-medium text-gray-900">{patient?.appointmentDate || 'Tue, Dec 31'}</p><p className="text-sm text-gray-600">{patient?.appointmentTime || '3:30 PM — 4:30 PM'}</p><p className="text-sm text-gray-900 mt-2">{patient?.providerMatch || 'Dr. Emily Watson'}</p><p className="text-xs text-gray-400">Individual Therapy • Telehealth</p></div></div>
+                <div className="flex items-start gap-4"><div className="w-12 h-12 bg-white border border-gray-200 rounded-lg flex items-center justify-center text-xl">📅</div><div><p className="text-base font-medium text-gray-900">{patient?.appointmentDate || getRelativeDateWithDay(2)}</p><p className="text-sm text-gray-600">{patient?.appointmentTime || '3:30 PM — 4:30 PM'}</p><p className="text-sm text-gray-900 mt-2">{patient?.providerMatch || 'Dr. Emily Watson'}</p><p className="text-xs text-gray-400">Individual Therapy • Telehealth</p></div></div>
               </div>
               <div className="border border-gray-100 rounded-lg overflow-hidden mb-6">
                 <div className="px-4 py-2 bg-gray-50 border-b border-gray-100"><p className="text-xs font-medium text-gray-500 uppercase">Patient</p></div>
@@ -637,29 +764,88 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
             <div className="flex-[6] border-r border-gray-100">
               <div className="h-full flex flex-col">
                 <div className="flex items-center gap-2 px-6 py-3 border-b border-gray-100 bg-white">
-                  {[{ id: 'edi', label: 'EDI Response' }, { id: 'portal', label: 'Portal Session' }, { id: 'call', label: 'Payer Call' }, { id: 'manual', label: 'Manual Entry' }].map(s => <button key={s.id} onClick={() => setBvSourceType(s.id)} className={`px-3 py-1.5 rounded text-sm ${bvSourceType === s.id ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>{s.label}</button>)}
+                  {(isJohnSmith 
+                    ? [{ id: 'edi', label: 'EDI Response' }]
+                    : [{ id: 'edi', label: 'EDI Response' }, { id: 'portal', label: 'Portal Session' }, { id: 'call', label: 'Payer Call' }, { id: 'manual', label: 'Manual Entry' }]
+                  ).map(s => <button key={s.id} onClick={() => setBvSourceType(s.id)} className={`px-3 py-1.5 rounded text-sm ${bvSourceType === s.id ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>{s.label}</button>)}
                 </div>
                 {bvSourceType === 'edi' && (
                   <div className="flex-1 flex flex-col bg-gray-50">
-                    <div className="px-6 py-4 border-b border-gray-100 bg-white"><div className="flex items-center gap-3"><SourceBadge type="edi" /><div><p className="text-sm font-medium text-gray-900">EDI 271 Response</p><p className="text-xs text-gray-400">Aetna • Dec 26, 10:19 AM • 15 sec</p></div></div></div>
+                    <div className="px-6 py-4 border-b border-gray-100 bg-white"><div className="flex items-center gap-3"><SourceBadge type="edi" /><div><p className="text-sm font-medium text-gray-900">EDI 271 Response</p><p className="text-xs text-gray-400">{patient?.insurance || 'Payer'} • {isJohnSmith && patient?.createdAt ? formatDynamicTimestamp(patient.createdAt, 4) : getTimestampToday(1, 41)} • 15 sec</p></div></div></div>
                     <div className="flex-1 overflow-auto p-6">
-                      <div className="bg-white rounded border border-gray-200 font-mono text-xs overflow-auto">
-                        <div className="p-4 text-gray-600 whitespace-pre leading-relaxed">{`ISA*00*          *00*          *ZZ*CLEARINGHOUSE  *ZZ*AETNA         *231226*1019*^*00501*000000001*0*P*:~
-GS*HB*CLEARINGHOUSE*AETNA*20251226*1019*1*X*005010X279A1~
-ST*271*0001*005010X279A1~
-NM1*IL*1*${(patientData.name?.split(' ')[1] || 'CHEN').toUpperCase()}*${(patientData.name?.split(' ')[0] || 'SARAH').toUpperCase()}****MI*${patient?.memberId || 'W123456789'}~
-EB*1**30**AETNA CHOICE POS II~
-EB*C*IND*30*MA*30~
-MSG*UNLIMITED VISITS - NO PRIOR AUTH REQUIRED~
-SE*20*0001~
-IEA*1*000000001~`}</div>
+                      <div className="bg-white rounded border border-gray-200 font-mono text-xs overflow-auto max-h-[500px]">
+                        <div className="p-4 text-gray-600 whitespace-pre leading-relaxed text-[10px]">{`ISA*00*          *00*          *ZZ*STEDI          *01*117151744      *${getEdiShortDate()}*2124*^*00501*844362682*0*P*:~
+GS*HB*STEDI*117151744*${getEdiLongDate()}*1525*844362682*X*005010X279A1~
+ST*271*844362682*005010X279A1~
+BHT*0022*11*01KCQ37DAR0NWXCBWTTVPAGH29*${getEdiLongDate()}*162501~
+HL*1**20*1~
+NM1*PR*2*${(patient?.insurance || 'PAYER').toUpperCase().replace(/ /g, '')}*****PI*87726~
+PER*IC**UR*WWW.${(patient?.insurance || 'PAYER').toUpperCase().replace(/ /g, '')}.COM~
+HL*2*1*21*1~
+NM1*1P*2*FARNSWORTH HEALTH SERVICES*****XX*1841707668~
+HL*3*2*22*1~
+NM1*IL*1*${(patientData.name?.split(' ')[1] || 'DOE').toUpperCase()}*${(patientData.name?.split(' ')[0] || 'JOHN').toUpperCase()}****MI*${patient?.memberId || '916206339'}~
+REF*6P*936173*PERDUE FARMS, INC~
+N3*136 ARENA ROAD~
+N4*PERRY*GA*31069~
+DMG*D8*19760706*M~
+HL*4*3*23*0~
+TRN*1*01KCQ37DC7BNCS4HNSV1THNK1X*3117151744~
+NM1*03*1*${(patientData.name?.split(' ')[1] || 'DOE').toUpperCase()}*${(patientData.name?.split(' ')[0] || 'JOHN').toUpperCase()}~
+REF*18*0087 0087~
+DMG*D8*19720309*F~
+INS*N*01*001*25~
+DTP*291*RD8*${new Date().getFullYear()}0101-${new Date().getFullYear()}1231~
+EB*1**30*C1*${(patient?.insurance || 'PAYER').toUpperCase()} CHOICE PLUS~
+MSG*PROVIDER IS IN NETWORK FOR MEMBER~
+MSG*FUNDING TYPE = SELF INSURED - LARGE GROUP~
+LS*2120~
+NM1*PR*2*${(patient?.insurance || 'PAYER').toUpperCase().replace(/ /g, '')}*****PI*87726~
+N3*P.O. BOX 740800~
+N4*ATLANTA*GA*303740800~
+PER*IC**UR*WWW.${(patient?.insurance || 'PAYER').toUpperCase().replace(/ /g, '')}.COM~
+LE*2120~
+EB*C*FAM*30***23*0*****Y~
+MSG*HIGHEST BENEFIT~
+EB*C*IND*30***23*0*****Y~
+MSG*HIGHEST BENEFIT~
+EB*G*FAM*30*C1**23*0*****Y~
+MSG*HIGHEST BENEFIT~
+EB*G*IND*30*C1**23*0*****Y~
+MSG*HIGHEST BENEFIT~
+EB*C*FAM*30***24*0*****Y~
+MSG*HIGHEST BENEFIT~
+EB*C*IND*30***24*0*****Y~
+MSG*HIGHEST BENEFIT~
+EB*C*FAM*30***29*0*****Y~
+MSG*HIGHEST BENEFIT~
+EB*C*IND*30***29*0*****Y~
+MSG*HIGHEST BENEFIT~
+EB*1**A4^A5^A6^A7^A8^AI^AJ^AK*********Y~
+MSG*HIGHEST BENEFIT~
+EB*1**A6*********Y~
+MSG*ABLETO FULLY FUNDED~
+EB*A*IND*A4^A8^AI^AJ^AK***27**0****Y~
+MSG*HIGHEST BENEFIT~
+EB*A*IND*A5^A7***27**.1****Y~
+EB*B*IND*A5^A7***27*0*****Y~
+MSG*HIGHEST BENEFIT~
+EB*B*IND*A4^A8^AI^AJ^AK***27*30*****Y~
+MSG*HIGHEST BENEFIT~
+EB*X~
+LS*2120~
+NM1*1P*2*FARNSWORTH HEALTH SERVICES*****XX*1841707668~
+LE*2120~
+SE*145*844362682~
+GE*1*844362682~
+IEA*1*844362682~`}</div>
                       </div>
                     </div>
                   </div>
                 )}
                 {bvSourceType === 'portal' && (
                   <div className="flex-1 flex flex-col">
-                    <div className="px-6 py-4 border-b border-gray-100 bg-white"><div className="flex items-center gap-3"><SourceBadge type="portal" /><div><p className="text-sm font-medium text-gray-900">Aetna Provider Portal</p><p className="text-xs text-gray-400">Dec 26, 10:19 AM • Screen Recording</p></div></div></div>
+                    <div className="px-6 py-4 border-b border-gray-100 bg-white"><div className="flex items-center gap-3"><SourceBadge type="portal" /><div><p className="text-sm font-medium text-gray-900">Provider Portal</p><p className="text-xs text-gray-400">{getTimestampToday(1, 41)} • Screen Recording</p></div></div></div>
                     <div className="flex-1 bg-gray-900 flex flex-col">
                       {/* Video element */}
                       <div className="flex-1 min-h-0 flex items-center justify-center relative">
@@ -730,7 +916,7 @@ IEA*1*000000001~`}</div>
                         <SourceBadge type="call" />
                         <div>
                           <p className="text-sm font-medium text-gray-900">Payer Verification Call</p>
-                          <p className="text-xs text-gray-400">Aetna IVR + Agent • Dec 26, 10:19 AM</p>
+                          <p className="text-xs text-gray-400">{patient?.insurance || 'Payer'} IVR + Agent • {getTimestampToday(1, 41)}</p>
                         </div>
                       </div>
                     </div>
@@ -813,7 +999,7 @@ IEA*1*000000001~`}</div>
                         </div>
                         <div>
                           <p className="text-sm font-medium text-gray-900">Manual Verification</p>
-                          <p className="text-xs text-gray-400">Entered by Jane D. - Dec 26, 11:45 AM</p>
+                          <p className="text-xs text-gray-400">Entered by Jane D. - {getTimestampToday(0, 15)}</p>
                         </div>
                       </div>
                     </div>
@@ -830,18 +1016,18 @@ IEA*1*000000001~`}</div>
                         </div>
                         <div>
                           <p className="text-xs font-medium text-gray-500 uppercase mb-2">Verification Method</p>
-                          <p className="text-sm text-gray-900">Called Aetna provider line (1-800-624-0756)</p>
+                          <p className="text-sm text-gray-900">Called {patient?.insurance || 'payer'} provider line</p>
                         </div>
                         <div>
                           <p className="text-xs font-medium text-gray-500 uppercase mb-2">Reference Number</p>
-                          <p className="text-sm text-gray-900 font-mono">REF-2024-1226-8847</p>
+                          <p className="text-sm text-gray-900 font-mono">REF-{new Date().getFullYear()}-{getEdiShortDate()}-8847</p>
                         </div>
                         <div>
                           <p className="text-xs font-medium text-gray-500 uppercase mb-2">Notes</p>
-                          <p className="text-sm text-gray-700 leading-relaxed">Spoke with rep Diana (ID #44721). Confirmed active coverage under Choice POS II plan. No prior auth required for outpatient mental health. Benefits verified for dates of service through 12/31/2025.</p>
+                          <p className="text-sm text-gray-700 leading-relaxed">Spoke with rep Diana (ID #44721). Confirmed active coverage under Choice POS II plan. No prior auth required for outpatient mental health. Benefits verified for dates of service through end of year.</p>
                         </div>
                         <div className="pt-3 border-t border-gray-100">
-                          <p className="text-xs text-gray-400">Entered: Dec 26, 2025 at 11:45 AM</p>
+                          <p className="text-xs text-gray-400">Entered: {getPastDateWithTime(0, '11:45 AM')}</p>
                         </div>
                       </div>
                     </div>
@@ -906,7 +1092,7 @@ IEA*1*000000001~`}</div>
               <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 mb-6 text-center"><div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3"><svg className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg></div><p className="text-base font-medium text-gray-900">Intake Complete</p><p className="text-sm text-gray-500 mt-1">Ready for appointment</p></div>
               <div className="border border-gray-100 rounded-lg overflow-hidden mb-6">
                 <div className="px-4 py-2 bg-gray-50 border-b border-gray-100"><p className="text-xs font-medium text-gray-500 uppercase">Appointment</p></div>
-                <div className="p-4"><p className="text-sm font-medium text-gray-900">{patient?.appointmentDate || 'Tue, Dec 31'} at {patient?.appointmentTime || '3:30 PM'}</p><p className="text-sm text-gray-600">{patient?.providerMatch || patient?.provider || 'Dr. Emily Watson'}</p><p className="text-xs text-gray-400 mt-1">Individual Therapy • Telehealth</p></div>
+                <div className="p-4"><p className="text-sm font-medium text-gray-900">{patient?.appointmentDate || getRelativeDateWithDay(2)} at {patient?.appointmentTime || '3:30 PM'}</p><p className="text-sm text-gray-600">{patient?.providerMatch || patient?.provider || 'Dr. Emily Watson'}</p><p className="text-xs text-gray-400 mt-1">Individual Therapy • Telehealth</p></div>
               </div>
               <div className="border border-gray-100 rounded-lg overflow-hidden mb-6">
                 <div className="px-4 py-2 bg-gray-50 border-b border-gray-100"><p className="text-xs font-medium text-gray-500 uppercase">Patient</p></div>
