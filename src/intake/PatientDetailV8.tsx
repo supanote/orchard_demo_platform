@@ -384,7 +384,7 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
     { stage: 'Selected', count: 1, description: 'Best match', providers: ['Dr. Emily Watson'] },
   ];
 
-  const bvResults = { status: 'Active', payer: patient?.insurance || 'Aetna', memberId: patient?.memberId || 'W123456789', networkStatus: 'In-Network', copay: patient?.copay || '$30', coinsurance: isJohnSmith ? '0%' : '20%', deductible: '$500 (met)', oopMax: '$3,000', visitLimit: 'Unlimited', priorAuth: 'Not required' };
+  const bvResults = { status: 'Active', payer: patient?.insurance || 'Aetna', memberId: patient?.memberId || 'W123456789', networkStatus: 'In-Network', copay: patient?.copay || '$30', coinsurance: isJohnSmith ? '0%' : '20%', deductible: '$500', oopMax: '$3,000', visitLimit: 'Unlimited', priorAuth: 'Not required' };
 
   const toggleStep = (stepId: number) => setExpandedSteps(prev => prev.includes(stepId) ? prev.filter(id => id !== stepId) : [...prev, stepId]);
   const getStageState = (stageOrder: number) => stageOrder < patientData.currentStage ? 'completed' : stageOrder === patientData.currentStage ? 'current' : 'pending';
