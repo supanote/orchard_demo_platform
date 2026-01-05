@@ -274,7 +274,7 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
   ];
 
   // Different agent steps for John Smith (phone call intake) vs other patients (fax referral)
-  const isJohnSmith = patient?.id === 9999;
+  // Note: isJohnSmith is already declared above
   
   // Helper to get dynamic time for John Smith workflow steps
   const getJohnSmithTime = (offsetMinutes: number) => patient?.createdAt ? formatDynamicTime(patient.createdAt, offsetMinutes) : '9:30 AM';
