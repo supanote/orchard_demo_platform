@@ -71,7 +71,7 @@ const claimsReducer = (state: ClaimsUIState, action: ClaimsAction): ClaimsUIStat
       return {
         ...state,
         selectedClaim: action.claim,
-        activeDetailTab: 'ai-review',
+        activeDetailTab: action.claim?.stage === 'submitted' ? 'submission' : 'ai-review',
         selectedSuggestions: [],
         showFullCMS1500: false,
       };
@@ -200,16 +200,16 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Generate tasks dynamically from claims in "Human Approval" stage (pending)
   const generateTasksFromClaims = useMemo((): Task[] => {
     const pendingClaims = claims.filter((claim) => claim.stage === 'pending');
-    
+
     return pendingClaims.map((claim) => {
       const aiSuggestions = claim.aiSuggestions ?? [];
       const pendingSuggestions = aiSuggestions.filter((s) => !s.approved && !s.rejected);
       const pendingCount = pendingSuggestions.length;
-      
+
       // Determine task type based on claim state
       let taskType: Task['type'] = 'human-review';
       let reason = '';
-      
+
       if (pendingCount > 0) {
         taskType = 'human-review';
         reason = `${pendingCount} AI suggestion${pendingCount > 1 ? 's' : ''} to review`;
@@ -220,14 +220,14 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         taskType = 'human-review';
         reason = 'Requires human review';
       }
-      
+
       // Determine priority based on waiting time or claim characteristics
       const waitingMinutes = parseWaitingTime(claim.timeInStage);
       const priority: 'P1' | 'P2' = waitingMinutes > 1440 ? 'P1' : 'P2'; // P1 if waiting more than 1 day
-      
+
       // Check if SLA is breached (more than 2 days)
       const slaBreached = waitingMinutes > 2880;
-      
+
       return {
         id: `task-${claim.id}`,
         claimId: claim.id,
@@ -580,7 +580,7 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const rejectedCount = updatedSuggestions.filter((s) => s.rejected).length;
             const approvedCount = updatedSuggestions.filter((s) => s.approved).length;
             const remainingCount = updatedSuggestions.length - rejectedCount - approvedCount;
-            
+
             let status = claim.status;
             if (allResolved) {
               status = 'Ready to submit';
@@ -625,7 +625,7 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const rejectedCount = updatedSuggestions.filter((s) => s.rejected).length;
             const approvedCount = updatedSuggestions.filter((s) => s.approved).length;
             const remainingCount = updatedSuggestions.length - rejectedCount - approvedCount;
-            
+
             let status = claim.status;
             if (allResolved) {
               status = 'Ready to submit';
