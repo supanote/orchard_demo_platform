@@ -75,6 +75,15 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
   const [bvAudioPlaying, setBvAudioPlaying] = useState(false);
   const [bvAudioTime, setBvAudioTime] = useState(0);
   const [bvAudioDuration, setBvAudioDuration] = useState(512); // 8:32 default
+  
+  // Activity video state (for John Smith)
+  const activityVideoRef = useRef<HTMLVideoElement>(null);
+  const [activityVideoPlaying, setActivityVideoPlaying] = useState(false);
+  const [activityVideoTime, setActivityVideoTime] = useState(0);
+  const [activityVideoDuration, setActivityVideoDuration] = useState(0);
+  
+  // Check if this is John Smith
+  const isJohnSmith = patient.id === 9999;
 
   // Handle intake audio play/pause
   const toggleIntakeAudio = () => {
@@ -109,6 +118,27 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
         bvAudioRef.current.play();
       }
       setBvAudioPlaying(!bvAudioPlaying);
+    }
+  };
+  
+  // Handle activity video play/pause
+  const toggleActivityVideo = () => {
+    if (activityVideoRef.current) {
+      if (activityVideoPlaying) {
+        activityVideoRef.current.pause();
+      } else {
+        activityVideoRef.current.play();
+      }
+      setActivityVideoPlaying(!activityVideoPlaying);
+    }
+  };
+  
+  // Seek handler for activity video
+  const handleActivityVideoSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = parseFloat(e.target.value);
+    setActivityVideoTime(newTime);
+    if (activityVideoRef.current) {
+      activityVideoRef.current.currentTime = newTime;
     }
   };
 
@@ -204,6 +234,28 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
       video.removeEventListener('ended', handleEnded);
     };
   }, [bvSourceType]);
+  
+  // Update video time for Activity tab (John Smith only)
+  useEffect(() => {
+    if (activeTab !== 'activity' || !isJohnSmith) return;
+    
+    const video = activityVideoRef.current;
+    if (!video) return;
+    
+    const handleTimeUpdate = () => setActivityVideoTime(video.currentTime);
+    const handleLoadedMetadata = () => setActivityVideoDuration(video.duration || 0);
+    const handleEnded = () => setActivityVideoPlaying(false);
+    
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('ended', handleEnded);
+    
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('ended', handleEnded);
+    };
+  }, [activeTab, isJohnSmith]);
 
   const patientData = {
     name: patient?.name || 'Sarah Chen',
@@ -376,6 +428,15 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
                 </React.Fragment>
               );
             })}
+            {/* Activity tab for John Smith only */}
+            {isJohnSmith && (
+              <>
+                <svg className="w-4 h-4 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                <button onClick={() => setActiveTab('activity')} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm ${activeTab === 'activity' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                  Activity
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -1049,6 +1110,102 @@ IEA*1*844362682~`}</div>
                 </tbody></table>
               </div>
               <div className="flex gap-3"><button className="flex-1 py-2 px-4 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800">Open in EHR</button><button className="py-2 px-4 text-gray-600 text-sm rounded-lg border border-gray-200 hover:bg-gray-50">Print</button></div>
+            </div>
+          </div>
+        )}
+
+        {/* ACTIVITY TAB - John Smith only */}
+        {activeTab === 'activity' && isJohnSmith && (
+          <div className="flex flex-col h-[calc(100vh-140px)]">
+            {/* Header */}
+            <div className="px-8 py-4 border-b border-gray-100 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Browser Agent Activity</p>
+                  <p className="text-xs text-gray-400">AdvancedMD EHR Session</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Video Player */}
+            <div className="flex-1 bg-gray-900 flex flex-col min-h-0">
+              <div className="flex-1 min-h-0 flex items-center justify-center relative">
+                <video 
+                  ref={activityVideoRef}
+                  src="/advancedMD.mp4"
+                  className="w-full h-full object-contain"
+                  onClick={toggleActivityVideo}
+                  onPlay={() => setActivityVideoPlaying(true)}
+                  onPause={() => setActivityVideoPlaying(false)}
+                  preload="auto"
+                />
+                {/* Play button overlay when paused */}
+                {!activityVideoPlaying && (
+                  <button 
+                    onClick={toggleActivityVideo}
+                    className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
+                  >
+                    <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                      <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </button>
+                )}
+              </div>
+              
+              {/* Video controls */}
+              <div className="flex-shrink-0 bg-black/80 px-6 py-4">
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={toggleActivityVideo}
+                    className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20"
+                  >
+                    {activityVideoPlaying ? (
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
+                  </button>
+                  <span className="text-sm text-white font-mono w-24">
+                    {formatTime(activityVideoTime)} / {formatTime(activityVideoDuration)}
+                  </span>
+                  <input
+                    type="range"
+                    min="0"
+                    max={activityVideoDuration || 100}
+                    step="0.1"
+                    value={activityVideoTime}
+                    onInput={handleActivityVideoSeek}
+                    onChange={handleActivityVideoSeek}
+                    className="flex-1 h-2 bg-white/30 rounded-full appearance-none cursor-pointer
+                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 
+                      [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-grab
+                      [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-webkit-slider-thumb]:shadow-md
+                      [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-white 
+                      [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:border-0"
+                    style={{
+                      background: `linear-gradient(to right, #fff 0%, #fff ${(activityVideoTime / (activityVideoDuration || 1)) * 100}%, rgba(255,255,255,0.3) ${(activityVideoTime / (activityVideoDuration || 1)) * 100}%, rgba(255,255,255,0.3) 100%)`
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Description */}
+            <div className="px-8 py-4 bg-gray-50 border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                AI agent navigating AdvancedMD to create patient record and schedule appointment...
+              </p>
             </div>
           </div>
         )}

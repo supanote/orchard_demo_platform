@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useCallback, useLayoutEffect, useRef } from 'react';
 import { useClaims } from '../ClaimsProvider';
 import { findStage, formatCurrency } from '../utils';
 import type { Claim } from '../types';
 
 export const WorkflowTab: React.FC = () => {
   const {
-    data: { claims, stages },
-    state: { workflowView, selectedClaims, expandedRows, isSyncingFromEhr },
+    data: { claims, stages, newlyAddedClaimIds },
+    state: { workflowView, selectedClaims, expandedRows, isSyncingFromEhr, filters },
     actions: {
       setWorkflowView,
       toggleClaimSelection,
@@ -15,8 +15,58 @@ export const WorkflowTab: React.FC = () => {
       toggleRowExpansion,
       setSelectedClaim,
       syncFromEhr,
+      setFilter,
+      submitClaims,
     },
   } = useClaims();
+
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const positionsRef = useRef<Map<string, DOMRect>>(new Map());
+
+  const handleCardRef = useCallback((id: string, node: HTMLDivElement | null) => {
+    const map = cardRefs.current;
+    if (node) {
+      map.set(id, node);
+    } else {
+      map.delete(id);
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    if (workflowView !== 'kanban') {
+      positionsRef.current.clear();
+      return;
+    }
+
+    const nextPositions = new Map<string, DOMRect>();
+    cardRefs.current.forEach((node, id) => {
+      nextPositions.set(id, node.getBoundingClientRect());
+    });
+
+    nextPositions.forEach((rect, id) => {
+      const previous = positionsRef.current.get(id);
+      const node = cardRefs.current.get(id);
+      if (!node || !previous) return;
+
+      const deltaX = previous.left - rect.left;
+      const deltaY = previous.top - rect.top;
+
+      if (deltaX !== 0 || deltaY !== 0) {
+        node.animate(
+          [
+            { transform: `translate(${deltaX}px, ${deltaY}px)` },
+            { transform: 'translate(0, 0)' },
+          ],
+          {
+            duration: 320,
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          },
+        );
+      }
+    });
+
+    positionsRef.current = nextPositions;
+  }, [claims, workflowView]);
 
   return (
     <div className="h-full flex flex-col">
@@ -60,14 +110,22 @@ export const WorkflowTab: React.FC = () => {
               )}
               {isSyncingFromEhr ? 'Syncing…' : 'Sync from EHR'}
             </button>
-            <select className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900">
+            <select
+              value={filters.stage}
+              onChange={(e) => setFilter('stage', e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900"
+            >
               <option>All Stages</option>
-              <option>New Charges</option>
               <option>AI Review</option>
               <option>Human Approval</option>
+              <option>Ready To Submit</option>
               <option>Claim Submitted</option>
             </select>
-            <select className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900">
+            <select
+              value={filters.payer}
+              onChange={(e) => setFilter('payer', e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900"
+            >
               <option>All Payers</option>
               <option>Aetna</option>
               <option>United</option>
@@ -75,7 +133,11 @@ export const WorkflowTab: React.FC = () => {
               <option>Cigna</option>
               <option>Medicare</option>
             </select>
-            <select className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900">
+            <select
+              value={filters.dateRange}
+              onChange={(e) => setFilter('dateRange', e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900"
+            >
               <option>All Dates</option>
               <option>Today</option>
               <option>Yesterday</option>
@@ -117,18 +179,32 @@ export const WorkflowTab: React.FC = () => {
               const stageClaims = claims.filter((claim) => claim.stage === stage.id);
               return (
                 <div key={stage.id} className="flex-1 min-w-80 flex flex-col">
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="mb-4 flex items-center justify-between relative pr-24">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-semibold text-gray-900">{stage.name}</h3>
                       <span className="px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">
                         {stageClaims.length}
                       </span>
                     </div>
+                    {stage.id === 'ready-to-submit' && stageClaims.length > 0 && (
+                      <button
+                        onClick={() => submitClaims()}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
+                      >
+                        Submit All
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex-1 space-y-3 overflow-y-auto">
                     {stageClaims.map((claim) => (
-                      <KanbanCard key={claim.id} claim={claim} onSelect={() => setSelectedClaim(claim)} />
+                      <KanbanCard
+                        key={claim.id}
+                        claim={claim}
+                        onSelect={() => setSelectedClaim(claim)}
+                        cardRef={(node) => handleCardRef(String(claim.id), node)}
+                        isNew={newlyAddedClaimIds.has(claim.id)}
+                      />
                     ))}
 
                     {stageClaims.length === 0 && (
@@ -177,7 +253,9 @@ export const WorkflowTab: React.FC = () => {
               {claims.map((claim) => (
                 <React.Fragment key={claim.id}>
                   <tr
-                    className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
+                    className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${
+                      newlyAddedClaimIds.has(claim.id) ? 'animate-fadeIn' : ''
+                    }`}
                     onClick={() => setSelectedClaim(claim)}
                   >
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -237,7 +315,12 @@ export const WorkflowTab: React.FC = () => {
                             <p className="text-xs font-medium text-gray-500 uppercase mb-3">AI Suggestions</p>
                             {claim.aiSuggestions.map((suggestion, idx) => (
                               <div key={idx} className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg">
-                                <input type="checkbox" defaultChecked className="mt-0.5 rounded border-gray-300" />
+                                <input
+                                  type="checkbox"
+                                  defaultChecked
+                                  disabled={suggestion.autoApproved === true}
+                                  className="mt-0.5 rounded border-gray-300 disabled:opacity-70"
+                                />
                                 <div className="flex-1">
                                   <p className="text-sm text-gray-900">
                                     {suggestion.type === 'cpt' && `Change CPT ${suggestion.from} → ${suggestion.to}`}
@@ -246,6 +329,20 @@ export const WorkflowTab: React.FC = () => {
                                     {suggestion.type === 'pos' &&
                                       `Update POS ${suggestion.from ?? '—'} → ${suggestion.to ?? '—'}`}
                                   </p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-700">
+                                      {suggestion.confidence}% confidence
+                                    </span>
+                                    <span
+                                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                                        suggestion.autoApproved
+                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                          : 'bg-amber-50 text-amber-700 border border-amber-100'
+                                      }`}
+                                    >
+                                      {suggestion.autoApproved ? 'Auto-approved' : 'Needs approval'}
+                                    </span>
+                                  </div>
                                   <p className="text-xs text-gray-500 mt-1">{suggestion.reason}</p>
                                 </div>
                               </div>
@@ -303,12 +400,12 @@ const StageBadge: React.FC<{ stageId: Claim['stage'] }> = ({ stageId }) => {
   if (!stage) return null;
 
   const styles =
-    stage.id === 'new'
-      ? 'bg-gray-100 text-gray-700'
-      : stage.id === 'ai-review'
+    stage.id === 'ai-review'
       ? 'bg-blue-50 text-blue-700'
       : stage.id === 'pending'
       ? 'bg-amber-50 text-amber-700'
+      : stage.id === 'ready-to-submit'
+      ? 'bg-cyan-50 text-cyan-700'
       : 'bg-emerald-50 text-emerald-700';
 
   return (
@@ -354,8 +451,13 @@ const StatusCell: React.FC<{ claim: Claim; expanded: boolean; onToggle: () => vo
     );
   }
 
-  if (claim.stage === 'pending' && claim.approvedBy) {
-    return <span className="text-xs text-emerald-600">Changes Applied</span>;
+  if (claim.stage === 'ready-to-submit') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-cyan-700">
+        <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full" />
+        Ready to submit
+      </span>
+    );
   }
 
   if (claim.stage === 'submitted' && claim.status === 'In transit') {
@@ -403,22 +505,21 @@ const StatusCell: React.FC<{ claim: Claim; expanded: boolean; onToggle: () => vo
     );
   }
 
-  if (claim.stage === 'new' && claim.status?.toLowerCase().includes('sync')) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs text-gray-600">
-        <div className="w-1.5 h-1.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-        {claim.status}
-      </span>
-    );
-  }
-
   return <span className="text-xs text-gray-500">{claim.status}</span>;
 };
 
-const KanbanCard: React.FC<{ claim: Claim; onSelect: () => void }> = ({ claim, onSelect }) => (
+const KanbanCard: React.FC<{
+  claim: Claim;
+  onSelect: () => void;
+  cardRef: (node: HTMLDivElement | null) => void;
+  isNew?: boolean;
+}> = ({ claim, onSelect, cardRef, isNew = false }) => (
   <div
+    ref={cardRef}
     onClick={onSelect}
-    className="bg-white border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm cursor-pointer transition-all min-h-[180px] flex flex-col"
+    className={`bg-white border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm cursor-pointer transition-all min-h-[180px] flex flex-col ${
+      isNew ? 'animate-fadeIn' : ''
+    }`}
   >
     <div className="flex items-start justify-between mb-2">
       <p className="text-sm font-medium text-gray-900">{claim.patient}</p>
@@ -445,8 +546,11 @@ const KanbanCard: React.FC<{ claim: Claim; onSelect: () => void }> = ({ claim, o
           {claim.aiSuggestions.length} AI suggestion{claim.aiSuggestions.length > 1 ? 's' : ''}
         </span>
       )}
-      {claim.stage === 'pending' && claim.approvedBy && (
-        <span className="inline-block px-2 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded">Changes Applied</span>
+      {claim.stage === 'ready-to-submit' && (
+        <div className="flex items-center gap-1.5 text-xs text-cyan-700">
+          <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full" />
+          <span>Ready to submit</span>
+        </div>
       )}
       {claim.stage === 'submitted' && claim.status === 'In transit' && (
         <div className="flex items-center gap-1.5 text-xs text-blue-600">
@@ -485,12 +589,6 @@ const KanbanCard: React.FC<{ claim: Claim; onSelect: () => void }> = ({ claim, o
       {claim.stage === 'ai-review' && (
         <div className="flex items-center gap-1.5 text-xs text-blue-600">
           <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-          <span>{claim.status}</span>
-        </div>
-      )}
-      {claim.stage === 'new' && (
-        <div className="flex items-center gap-1.5 text-xs text-gray-600">
-          <div className="w-1.5 h-1.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
           <span>{claim.status}</span>
         </div>
       )}

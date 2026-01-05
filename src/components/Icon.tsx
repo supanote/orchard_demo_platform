@@ -25,7 +25,9 @@ type IconProps = {
   className?: string
 }
 
-const icons: Record<IconName, ReactElement> = {
+type SvgElement = ReactElement<ComponentPropsWithoutRef<'svg'>>
+
+const icons: Record<IconName, SvgElement> = {
   dashboard: (
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
@@ -119,6 +121,7 @@ const Icon = ({ name, className = 'w-5 h-5', ...rest }: IconProps & ComponentPro
   if (!icon) return null
 
   return cloneElement(icon, { className, ...rest } as React.SVGProps<SVGSVGElement>)
+  return cloneElement<ComponentPropsWithoutRef<'svg'>>(icon, { className, ...rest })
 }
 
 export default Icon

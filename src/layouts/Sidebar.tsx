@@ -70,6 +70,18 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     if (item.path) {
       navigate(item.path)
     }
+    
+    // Handle Practice Settings - dispatch custom event
+    if (item.id === 'settings') {
+      // Navigate to intake first if not already there, then open settings
+      if (pathname !== '/intake') {
+        navigate('/intake')
+      }
+      // Dispatch event to open settings panel
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('openSettings'))
+      }, 100)
+    }
   }
 
   return (
