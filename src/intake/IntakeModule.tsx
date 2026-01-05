@@ -90,6 +90,16 @@ const IntakeModule: React.FC = () => {
     const interval = setInterval(checkPatientStatus, 2000);
     return () => clearInterval(interval);
   }, [apiPatient, selectedPatient]);
+  
+  // Listen for settings panel open event from sidebar
+  useEffect(() => {
+    const handleOpenSettings = () => {
+      setShowSettingsPanel(true);
+    };
+    
+    window.addEventListener('openSettings', handleOpenSettings);
+    return () => window.removeEventListener('openSettings', handleOpenSettings);
+  }, []);
 
   // Delete API patient function (for Settings tab)
   const deleteApiPatient = useCallback(async () => {
