@@ -149,9 +149,6 @@ const WorkflowTab: React.FC<WorkflowTabProps> = ({
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Find active patient on call (first patient in outreach with AI handler)
-  const activeCallPatient = patients.find(p => p.stage === 'outreach' && p.handledBy === 'AI' && !p.escalated);
-
   return (
     <div className="h-full">
       {/* Main content */}
