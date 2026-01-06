@@ -205,3 +205,59 @@ export const getNextMondayShort = (): string => {
     day: 'numeric' 
   });
 };
+
+/**
+ * Convert an appointment time (e.g., "9:30 AM", "2:00 PM") to a natural availability preference
+ * @param appointmentTime - time string like "9:30 AM" or "4:30 PM"
+ * @returns natural availability preference string
+ */
+export const getAvailabilityFromTime = (appointmentTime: string | undefined): string => {
+  if (!appointmentTime) return 'Flexible';
+  
+  // Parse the hour from the time string
+  const match = appointmentTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return 'Flexible';
+  
+  let hour = parseInt(match[1], 10);
+  const period = match[3].toUpperCase();
+  
+  // Convert to 24-hour format for easier comparison
+  if (period === 'PM' && hour !== 12) hour += 12;
+  if (period === 'AM' && hour === 12) hour = 0;
+  
+  // Generate natural availability text based on time
+  if (hour < 10) {
+    return 'Mornings, before 10am';
+  } else if (hour < 12) {
+    return `Mornings, around ${appointmentTime.toLowerCase()}`;
+  } else if (hour === 12) {
+    return 'Midday, around noon';
+  } else if (hour < 15) {
+    return `Early afternoons, around ${appointmentTime.toLowerCase()}`;
+  } else if (hour < 17) {
+    return `Afternoons, after 3pm`;
+  } else {
+    return `Evenings, after 5pm`;
+  }
+};
+
+/**
+ * Get a short availability description for provider matching
+ * @param appointmentTime - time string like "9:30 AM"
+ * @returns short description like "Have slots around 9:30 AM"
+ */
+export const getAvailabilitySlotDescription = (appointmentTime: string | undefined, appointmentDate?: string): string => {
+  if (!appointmentTime) return 'Have available slots';
+  
+  if (appointmentDate) {
+    // Try to extract day of week from date
+    const date = new Date(appointmentDate);
+    if (!isNaN(date.getTime())) {
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+      const monthDay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return `Have slots ${dayName}, ${monthDay} at ${appointmentTime}`;
+    }
+  }
+  
+  return `Have slots at ${appointmentTime}`;
+};

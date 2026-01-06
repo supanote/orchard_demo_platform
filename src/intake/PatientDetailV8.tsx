@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getTimestampToday, getRelativeDateWithDay, getDateTimeString, getPastDateWithTime, getFaxDateFormat, getEdiShortDate, getEdiLongDate, getNextMonday, getNextMondayShort } from './utils/dateHelpers';
+import { getTimestampToday, getRelativeDateWithDay, getDateTimeString, getPastDateWithTime, getFaxDateFormat, getEdiShortDate, getEdiLongDate, getNextMonday, getNextMondayShort, getAvailabilityFromTime, getAvailabilitySlotDescription } from './utils/dateHelpers';
 
 interface Patient {
   id: number;
@@ -316,13 +316,13 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
     { field: 'DOB Verified', value: patientData.dob, source: '0:15', timestamp: 15, status: 'verified' },
     { field: 'Insurance Verified', value: 'CareFirst', source: '0:30', timestamp: 30, status: 'verified' },
     { field: 'Chief Complaint', value: 'Anxiety from work stress', source: '0:48', timestamp: 48, status: 'extracted' },
-    { field: 'Availability', value: 'Mornings, before 10am', source: '1:15', timestamp: 75, status: 'extracted' },
+    { field: 'Availability', value: getAvailabilityFromTime(patient?.appointmentTime), source: '1:15', timestamp: 75, status: 'extracted' },
     { field: 'Modality', value: 'In-person preferred', source: '1:28', timestamp: 88, status: 'extracted' },
   ] : [
     { field: 'DOB Verified', value: patientData.dob, source: '0:32', timestamp: 32, status: 'verified' },
     { field: 'Insurance Verified', value: patient?.insurance || 'Aetna', source: '0:42', timestamp: 42, status: 'verified' },
     { field: 'Chief Complaint', value: patient?.reason || 'Anxiety, stress affecting sleep and work', source: '1:02', timestamp: 62, status: 'extracted' },
-    { field: 'Availability', value: 'Afternoons, after 3pm', source: '1:38', timestamp: 98, status: 'extracted' },
+    { field: 'Availability', value: getAvailabilityFromTime(patient?.appointmentTime), source: '1:38', timestamp: 98, status: 'extracted' },
     { field: 'Modality', value: 'Open to telehealth or in-person', source: '1:52', timestamp: 112, status: 'extracted' },
   ];
 
@@ -375,12 +375,12 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
   const matchingFunnel = isJohnSmith ? [
     { stage: 'Payer Accepted', count: 2, description: 'Accept CareFirst', providers: ['Dr. Amanda Puckett', 'Dr. Naomi Lee'] },
     { stage: 'Clinical Match', count: 2, description: 'Specialize in Anxiety', providers: ['Dr. Amanda Puckett', 'Dr. Naomi Lee'] },
-    { stage: 'Availability', count: 1, description: 'Have slots ' + getNextMondayShort() + ' at 9:30 AM', providers: ['Dr. Amanda Puckett'] },
+    { stage: 'Availability', count: 1, description: getAvailabilitySlotDescription(patient?.appointmentTime, patient?.appointmentDate), providers: ['Dr. Amanda Puckett'] },
     { stage: 'Selected', count: 1, description: 'Best match', providers: ['Dr. Amanda Puckett'] },
   ] : [
     { stage: 'Payer Accepted', count: 13, description: 'Accept ' + (patient?.insurance || 'Aetna'), providers: ['Dr. Emily Watson', 'Dr. James Liu', 'Sarah Martinez, LCSW'] },
     { stage: 'Clinical Match', count: 8, description: 'Specialize in ' + (patient?.reason || 'Anxiety'), providers: ['Dr. Emily Watson', 'Dr. James Liu'] },
-    { stage: 'Availability', count: 3, description: 'Have slots after 3pm', providers: ['Dr. Emily Watson'] },
+    { stage: 'Availability', count: 3, description: getAvailabilitySlotDescription(patient?.appointmentTime, patient?.appointmentDate), providers: ['Dr. Emily Watson'] },
     { stage: 'Selected', count: 1, description: 'Best match', providers: ['Dr. Emily Watson'] },
   ];
 
@@ -709,7 +709,7 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
                   <tbody>
                     <tr className="border-b border-gray-50"><td className="px-4 py-2.5 text-gray-500 w-32">Payer</td><td className="px-4 py-2.5 text-gray-900">{patient?.insurance || 'Aetna'}</td></tr>
                     <tr className="border-b border-gray-50"><td className="px-4 py-2.5 text-gray-500">Concern</td><td className="px-4 py-2.5 text-gray-900">{patient?.reason || 'Anxiety, Depression'}</td></tr>
-                    <tr className="border-b border-gray-50"><td className="px-4 py-2.5 text-gray-500">Availability</td><td className="px-4 py-2.5 text-gray-900">Afternoons, after 3pm</td></tr>
+                    <tr className="border-b border-gray-50"><td className="px-4 py-2.5 text-gray-500">Availability</td><td className="px-4 py-2.5 text-gray-900">{getAvailabilityFromTime(patient?.appointmentTime)}</td></tr>
                     <tr><td className="px-4 py-2.5 text-gray-500">Modality</td><td className="px-4 py-2.5 text-gray-900">Open to telehealth or in-person</td></tr>
                   </tbody>
                 </table>

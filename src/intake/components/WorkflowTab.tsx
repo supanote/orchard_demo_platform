@@ -495,38 +495,6 @@ const WorkflowTab: React.FC<WorkflowTabProps> = ({
           </div>
         )}
 
-        {/* Live Call Widget */}
-        {view === 'kanban' && activeCallPatient && (
-          <div className="fixed bottom-6 left-6 bg-white border border-gray-200 rounded-xl shadow-lg p-4 z-40 w-64">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-              </span>
-              <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wide">Live Call</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900">{activeCallPatient.name || 'Unknown'}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-mono text-gray-700">{formatCallTime(liveCallTime)}</span>
-                {/* Animated waveform */}
-                <div className="flex items-center gap-0.5">
-                  <div className="w-1 h-4 bg-emerald-500 rounded-full animate-wave"></div>
-                  <div className="w-1 h-6 bg-emerald-500 rounded-full animate-wave-1"></div>
-                  <div className="w-1 h-3 bg-emerald-500 rounded-full animate-wave-2"></div>
-                  <div className="w-1 h-5 bg-emerald-500 rounded-full animate-wave-3"></div>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-3 text-xs text-gray-500">
-              <span>⌘</span>
-              <span>K</span>
-              <span className="text-gray-400 ml-1">Quick actions</span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Live Activity Panel - Bottom Right Floating */}
