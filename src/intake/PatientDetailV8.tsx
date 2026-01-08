@@ -547,7 +547,7 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
               </div>
               <div className="mb-4 px-3 py-2 bg-emerald-50 rounded-lg inline-flex items-center gap-2 text-sm text-emerald-700 self-start"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Contacted within 33 min • SLA met</div>
               
-              {/* Live Transcript Preview Card */}
+              {/* Call Transcript Preview Card */}
               {patient?.handledBy === 'AI' && (
                 <div className="mb-4 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                   <div className="flex items-center gap-3 mb-3">
@@ -560,12 +560,12 @@ const PatientDetailV8: React.FC<PatientDetailV8Props> = ({ patient, onBack, init
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Supa is on the call</p>
+                      <p className="text-sm font-medium text-gray-900">Supa AI intake call</p>
                       <p className="text-xs text-gray-500">Duration: {formatTime(audioDuration)}</p>
                     </div>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs font-medium text-gray-500 mb-2">Live Transcript</p>
+                    <p className="text-xs font-medium text-gray-500 mb-2">Call Transcript</p>
                     <div className="space-y-2">
                       <p className="text-sm text-gray-700">
                         <span className="font-medium text-blue-600">Patient:</span> "...yes, I've been feeling {patient?.reason?.toLowerCase().includes('anxiety') ? 'anxious' : patient?.reason?.toLowerCase().includes('depression') ? 'down' : 'unwell'} for about {isJohnSmith ? '3 weeks' : 'a few weeks'} now..."
