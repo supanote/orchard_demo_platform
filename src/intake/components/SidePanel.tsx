@@ -276,12 +276,12 @@ const SidePanel: React.FC<SidePanelProps> = ({
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Supa is on the call</p>
+                      <p className="text-sm font-medium text-gray-900">Supa AI intake call</p>
                       <p className="text-xs text-gray-500">Duration: {patient.time || '2:34'}</p>
                     </div>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs font-medium text-gray-500 mb-2">Live Transcript</p>
+                    <p className="text-xs font-medium text-gray-500 mb-2">Call Transcript</p>
                     <div className="space-y-2">
                       <p className="text-sm text-gray-700">
                         <span className="font-medium text-blue-600">Patient:</span> "...yes, I've been feeling {patient.reason?.toLowerCase().includes('anxiety') ? 'anxious' : patient.reason?.toLowerCase().includes('depression') || patient.reason?.toLowerCase().includes('grief') ? 'down' : 'unwell'} for about 3 weeks now..."
